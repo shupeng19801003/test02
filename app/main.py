@@ -5,12 +5,13 @@ from fastapi.responses import FileResponse
 import os
 
 from app.config import settings
-from app.routers import knowledge_base, document
+from app.routers import knowledge_base, document, chat
 
 app = FastAPI(title="RAG Q&A System", version="1.0.0")
 
 app.include_router(knowledge_base.router)
 app.include_router(document.router)
+app.include_router(chat.router)
 
 app.add_middleware(
     CORSMiddleware,
