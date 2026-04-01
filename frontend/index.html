@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG 智能问答系统</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; height: 100vh; }
+
+        .app { display: flex; height: 100vh; }
+
+        /* Sidebar */
+        .sidebar { width: 320px; background: #fff; border-right: 1px solid #e4e7ed; display: flex; flex-direction: column; flex-shrink: 0; }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid #e4e7ed; }
+        .sidebar-header h2 { font-size: 18px; color: #303133; margin-bottom: 4px; }
+        .sidebar-header p { font-size: 12px; color: #909399; }
+
+        .sidebar-section { padding: 16px 20px; border-bottom: 1px solid #e4e7ed; }
+        .sidebar-section h3 { font-size: 14px; color: #606266; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+
+        .kb-list { list-style: none; max-height: 200px; overflow-y: auto; }
+        .kb-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+        .kb-item:hover { background: #f5f7fa; }
+        .kb-item.active { background: #ecf5ff; color: #409eff; }
+        .kb-item .kb-name { font-size: 14px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .kb-item .kb-meta { font-size: 11px; color: #909399; }
+        .kb-item .delete-btn { opacity: 0; color: #f56c6c; cursor: pointer; font-size: 14px; padding: 2px 6px; }
+        .kb-item:hover .delete-btn { opacity: 1; }
+
+        /* Create KB form */
+        .create-form { display: flex; flex-direction: column; gap: 8px; }
+        .create-form input, .create-form textarea { padding: 8px 12px; border: 1px solid #dcdfe6; border-radius: 6px; font-size: 13px; outline: none; transition: border-color 0.2s; }
+        .create-form input:focus, .create-form textarea:focus { border-color: #409eff; }
+        .create-form textarea { resize: vertical; min-height: 40px; }
+
+        /* Buttons */
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+        .btn-primary { background: #409eff; color: #fff; }
+        .btn-primary:hover { background: #337ecc; }
+        .btn-primary:disabled { background: #a0cfff; cursor: not-allowed; }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+        .btn-danger { background: #f56c6c; color: #fff; }
+        .btn-danger:hover { background: #dd6161; }
+        .btn-text { background: none; color: #409eff; padding: 4px 8px; }
+        .btn-text:hover { background: #ecf5ff; }
+
+        /* Upload area */
+        .upload-area { border: 2px dashed #dcdfe6; border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+        .upload-area:hover, .upload-area.dragover { border-color: #409eff; background: #ecf5ff; }
+        .upload-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+        .upload-area .upload-icon { font-size: 32px; color: #909399; margin-bottom: 8px; }
+        .upload-area p { font-size: 13px; color: #606266; }
+        .upload-area .hint { font-size: 11px; color: #909399; margin-top: 4px; }
+
+        /* Document list */
+        .doc-list { list-style: none; max-height: 180px; overflow-y: auto; }
+        .doc-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f2f3f5; font-size: 13px; }
+        .doc-item:last-child { border-bottom: none; }
+        .doc-item .doc-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .doc-item .doc-chunks { color: #909399; font-size: 11px; margin: 0 8px; }
+
+        /* Chat area */
+        .chat-area { flex: 1; display: flex; flex-direction: column; background: #f5f7fa; }
+        .chat-header { padding: 16px 24px; background: #fff; border-bottom: 1px solid #e4e7ed; }
+        .chat-header h3 { font-size: 16px; color: #303133; }
+
+        .chat-messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+
+        .message { max-width: 80%; padding: 12px 16px; border-radius: 12px; font-size: 14px; line-height: 1.6; word-break: break-word; }
+        .message-user { align-self: flex-end; background: #409eff; color: #fff; border-bottom-right-radius: 4px; }
+        .message-assistant { align-self: flex-start; background: #fff; border: 1px solid #e4e7ed; border-bottom-left-radius: 4px; }
+        .message-assistant :deep(p) { margin-bottom: 8px; }
+        .message-assistant :deep(p:last-child) { margin-bottom: 0; }
+        .message-assistant :deep(code) { background: #f5f7fa; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+        .message-assistant :deep(pre) { background: #f5f7fa; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
+        .message-assistant :deep(pre code) { background: none; padding: 0; }
+
+        .sources-toggle { font-size: 12px; color: #909399; cursor: pointer; margin-top: 8px; }
+        .sources-toggle:hover { color: #409eff; }
+        .sources-list { margin-top: 8px; padding: 8px; background: #f5f7fa; border-radius: 6px; font-size: 12px; color: #606266; }
+        .source-item { margin-bottom: 6px; padding: 6px 8px; background: #fff; border-radius: 4px; border-left: 3px solid #409eff; }
+        .source-item:last-child { margin-bottom: 0; }
+        .source-item .source-name { font-weight: 600; color: #409eff; }
+        .source-item .source-text { color: #909399; margin-top: 4px; font-size: 11px; }
+
+        .chat-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: #909399; font-size: 15px; }
+
+        /* Chat input */
+        .chat-input { padding: 16px 24px; background: #fff; border-top: 1px solid #e4e7ed; display: flex; gap: 12px; align-items: flex-end; }
+        .chat-input textarea { flex: 1; padding: 10px 14px; border: 1px solid #dcdfe6; border-radius: 8px; font-size: 14px; resize: none; outline: none; max-height: 120px; min-height: 44px; font-family: inherit; transition: border-color 0.2s; }
+        .chat-input textarea:focus { border-color: #409eff; }
+
+        /* Status / loading */
+        .loading { display: inline-block; }
+        .loading::after { content: '...'; animation: dots 1.5s steps(4, end) infinite; }
+        @keyframes dots { 0%, 20% { content: ''; } 40% { content: '.'; } 60% { content: '..'; } 80%, 100% { content: '...'; } }
+
+        .toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; background: #333; color: #fff; border-radius: 8px; font-size: 13px; z-index: 1000; transition: opacity 0.3s; }
+        .toast.success { background: #67c23a; }
+        .toast.error { background: #f56c6c; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #dcdfe6; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #c0c4cc; }
+    </style>
+</head>
+<body>
+<div id="app">
+    <!-- Toast notifications -->
+    <div v-if="toast.show" :class="['toast', toast.type]">{{ toast.message }}</div>
+
+    <div class="app">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>RAG 智能问答系统</h2>
+                <p>基于本地知识库的智能问答</p>
+            </div>
+
+            <!-- Knowledge Base Management -->
+            <div class="sidebar-section">
+                <h3>
+                    知识库
+                    <button class="btn btn-sm btn-primary" @click="showCreateKB = !showCreateKB">
+                        {{ showCreateKB ? '取消' : '+ 新建' }}
+                    </button>
+                </h3>
+
+                <div v-if="showCreateKB" class="create-form" style="margin-bottom: 12px;">
+                    <input v-model="newKB.name" placeholder="知识库名称" @keyup.enter="createKB">
+                    <textarea v-model="newKB.description" placeholder="描述（可选）" rows="2"></textarea>
+                    <button class="btn btn-primary btn-sm" @click="createKB" :disabled="!newKB.name.trim()">创建</button>
+                </div>
+
+                <ul class="kb-list">
+                    <li v-for="kb in knowledgeBases" :key="kb.id"
+                        :class="['kb-item', { active: selectedKB?.id === kb.id }]"
+                        @click="selectKB(kb)">
+                        <span class="kb-name">{{ kb.name }}</span>
+                        <span class="kb-meta">{{ kb.doc_count }} 文档</span>
+                        <span class="delete-btn" @click.stop="deleteKB(kb.id)" title="删除">&times;</span>
+                    </li>
+                </ul>
+                <p v-if="!knowledgeBases.length" style="font-size: 13px; color: #909399; text-align: center; padding: 16px 0;">
+                    暂无知识库，请先创建
+                </p>
+            </div>
+
+            <!-- Document Management (shown when KB selected) -->
+            <div v-if="selectedKB" class="sidebar-section" style="flex: 1; overflow-y: auto;">
+                <h3>{{ selectedKB.name }} - 文档</h3>
+
+                <div :class="['upload-area', { dragover: isDragover }]"
+                     @dragover.prevent="isDragover = true"
+                     @dragleave="isDragover = false"
+                     @drop.prevent="handleDrop">
+                    <input type="file" multiple
+                           accept=".pdf,.docx,.xlsx,.pptx,.txt,.md"
+                           @change="handleFileSelect"
+                           ref="fileInput">
+                    <div class="upload-icon">+</div>
+                    <p v-if="!uploading">点击或拖拽上传文档</p>
+                    <p v-else><span class="loading">正在处理</span></p>
+                    <p class="hint">支持 PDF、Word、Excel、PPT、TXT、Markdown</p>
+                </div>
+
+                <ul class="doc-list" style="margin-top: 12px;">
+                    <li v-for="doc in documents" :key="doc.id" class="doc-item">
+                        <span class="doc-name" :title="doc.name">{{ doc.name }}</span>
+                        <span class="doc-chunks">{{ doc.chunk_count }} 分块</span>
+                        <button class="btn btn-text" style="color: #f56c6c; font-size: 12px;" @click="deleteDoc(doc.id)">&times;</button>
+                    </li>
+                </ul>
+                <p v-if="selectedKB && !documents.length" style="font-size: 12px; color: #909399; text-align: center; padding: 12px 0;">
+                    尚未上传文档
+                </p>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div class="chat-area">
+            <div class="chat-header">
+                <h3 v-if="selectedKB">与「{{ selectedKB.name }}」对话</h3>
+                <h3 v-else>请先选择一个知识库</h3>
+            </div>
+
+            <div v-if="!selectedKB" class="chat-empty">
+                请在左侧选择或创建一个知识库开始对话
+            </div>
+
+            <div v-else class="chat-messages" ref="chatMessages">
+                <div v-if="!messages.length" class="chat-empty">
+                    上传文档后，开始提问吧
+                </div>
+                <div v-for="(msg, idx) in messages" :key="idx" :class="['message', 'message-' + msg.role]">
+                    <div v-if="msg.role === 'assistant'" v-html="renderMarkdown(msg.content)"></div>
+                    <template v-else>{{ msg.content }}</template>
+
+                    <!-- Sources -->
+                    <div v-if="msg.sources && msg.sources.length">
+                        <div class="sources-toggle" @click="msg.showSources = !msg.showSources">
+                            {{ msg.showSources ? '收起' : '查看' }}参考来源 ({{ msg.sources.length }})
+                        </div>
+                        <div v-if="msg.showSources" class="sources-list">
+                            <div v-for="(src, si) in msg.sources" :key="si" class="source-item">
+                                <div class="source-name">{{ src.doc_name }}<span v-if="src.page"> - 第{{ src.page }}页</span></div>
+                                <div class="source-text">{{ src.chunk_text }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-if="streaming" class="message message-assistant">
+                    <div v-html="renderMarkdown(streamContent || '思考中...')"></div>
+                </div>
+            </div>
+
+            <div v-if="selectedKB" class="chat-input">
+                <textarea v-model="question"
+                          placeholder="输入你的问题..."
+                          @keydown.enter.exact.prevent="sendQuestion"
+                          rows="1"
+                          ref="questionInput"
+                          @input="autoResize"></textarea>
+                <button class="btn btn-primary" @click="sendQuestion" :disabled="!question.trim() || streaming">
+                    {{ streaming ? '生成中...' : '发送' }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const { createApp, ref, reactive, onMounted, nextTick, watch } = Vue;
+
+const API_BASE = window.location.origin;
+
+createApp({
+    setup() {
+        // State
+        const knowledgeBases = ref([]);
+        const selectedKB = ref(null);
+        const documents = ref([]);
+        const messages = ref([]);
+        const question = ref('');
+        const streaming = ref(false);
+        const streamContent = ref('');
+        const uploading = ref(false);
+        const showCreateKB = ref(false);
+        const isDragover = ref(false);
+        const newKB = reactive({ name: '', description: '' });
+        const toast = reactive({ show: false, message: '', type: 'success' });
+
+        // Refs
+        const chatMessages = ref(null);
+        const questionInput = ref(null);
+        const fileInput = ref(null);
+
+        // Toast
+        function showToast(message, type = 'success') {
+            toast.show = true;
+            toast.message = message;
+            toast.type = type;
+            setTimeout(() => { toast.show = false; }, 3000);
+        }
+
+        // Scroll to bottom
+        function scrollToBottom() {
+            nextTick(() => {
+                if (chatMessages.value) {
+                    chatMessages.value.scrollTop = chatMessages.value.scrollHeight;
+                }
+            });
+        }
+
+        // Auto resize textarea
+        function autoResize(e) {
+            const el = e.target;
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+        }
+
+        // Render markdown
+        function renderMarkdown(text) {
+            if (!text) return '';
+            try {
+                return marked.parse(text);
+            } catch {
+                return text;
+            }
+        }
+
+        // --- Knowledge Base ---
+        async function loadKBs() {
+            try {
+                const res = await fetch(`${API_BASE}/api/knowledge-bases`);
+                knowledgeBases.value = await res.json();
+            } catch (e) {
+                showToast('加载知识库失败', 'error');
+            }
+        }
+
+        async function createKB() {
+            if (!newKB.name.trim()) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/knowledge-bases`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newKB.name, description: newKB.description }),
+                });
+                const kb = await res.json();
+                knowledgeBases.value.push(kb);
+                selectKB(kb);
+                newKB.name = '';
+                newKB.description = '';
+                showCreateKB.value = false;
+                showToast('知识库创建成功');
+            } catch (e) {
+                showToast('创建失败', 'error');
+            }
+        }
+
+        async function deleteKB(id) {
+            if (!confirm('确定删除该知识库？所有文档将被清除。')) return;
+            try {
+                await fetch(`${API_BASE}/api/knowledge-bases/${id}`, { method: 'DELETE' });
+                knowledgeBases.value = knowledgeBases.value.filter(kb => kb.id !== id);
+                if (selectedKB.value?.id === id) {
+                    selectedKB.value = null;
+                    documents.value = [];
+                    messages.value = [];
+                }
+                showToast('知识库已删除');
+            } catch (e) {
+                showToast('删除失败', 'error');
+            }
+        }
+
+        function selectKB(kb) {
+            selectedKB.value = kb;
+            messages.value = [];
+            loadDocuments();
+        }
+
+        // --- Documents ---
+        async function loadDocuments() {
+            if (!selectedKB.value) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/knowledge-bases/${selectedKB.value.id}/documents`);
+                documents.value = await res.json();
+            } catch (e) {
+                showToast('加载文档列表失败', 'error');
+            }
+        }
+
+        async function uploadFile(file) {
+            if (!selectedKB.value) return;
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch(
+                    `${API_BASE}/api/knowledge-bases/${selectedKB.value.id}/documents`,
+                    { method: 'POST', body: formData }
+                );
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || '上传失败');
+                }
+                const doc = await res.json();
+                documents.value.push(doc);
+                // Update KB doc count
+                selectedKB.value.doc_count = documents.value.length;
+                showToast(`${file.name} 上传成功`);
+            } catch (e) {
+                showToast(`${file.name}: ${e.message}`, 'error');
+            }
+        }
+
+        async function handleFileSelect(e) {
+            const files = e.target.files;
+            if (!files.length) return;
+            uploading.value = true;
+            for (const file of files) {
+                await uploadFile(file);
+            }
+            uploading.value = false;
+            if (fileInput.value) fileInput.value.value = '';
+        }
+
+        async function handleDrop(e) {
+            isDragover.value = false;
+            const files = e.dataTransfer.files;
+            if (!files.length) return;
+            uploading.value = true;
+            for (const file of files) {
+                await uploadFile(file);
+            }
+            uploading.value = false;
+        }
+
+        async function deleteDoc(docId) {
+            if (!selectedKB.value) return;
+            try {
+                await fetch(
+                    `${API_BASE}/api/knowledge-bases/${selectedKB.value.id}/documents/${docId}`,
+                    { method: 'DELETE' }
+                );
+                documents.value = documents.value.filter(d => d.id !== docId);
+                selectedKB.value.doc_count = documents.value.length;
+                showToast('文档已删除');
+            } catch (e) {
+                showToast('删除失败', 'error');
+            }
+        }
+
+        // --- Chat ---
+        async function sendQuestion() {
+            if (!question.value.trim() || streaming.value || !selectedKB.value) return;
+
+            const q = question.value.trim();
+            question.value = '';
+
+            // Reset textarea height
+            if (questionInput.value) questionInput.value.style.height = 'auto';
+
+            messages.value.push({ role: 'user', content: q });
+            scrollToBottom();
+
+            streaming.value = true;
+            streamContent.value = '';
+            const sources = [];
+
+            try {
+                const res = await fetch(`${API_BASE}/api/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        question: q,
+                        kb_id: selectedKB.value.id,
+                        top_k: 4,
+                    }),
+                });
+
+                if (!res.ok) {
+                    throw new Error('请求失败');
+                }
+
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    let currentEvent = '';
+                    for (const line of lines) {
+                        if (line.startsWith('event: ')) {
+                            currentEvent = line.slice(7).trim();
+                        } else if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            try {
+                                const parsed = JSON.parse(data);
+                                if (currentEvent === 'source') {
+                                    sources.push(parsed);
+                                } else if (currentEvent === 'token') {
+                                    streamContent.value += parsed.content;
+                                    scrollToBottom();
+                                } else if (currentEvent === 'error') {
+                                    showToast(parsed.message, 'error');
+                                } else if (currentEvent === 'done') {
+                                    // complete
+                                }
+                            } catch {}
+                            currentEvent = '';
+                        }
+                    }
+                }
+
+                // Finalize assistant message
+                if (streamContent.value) {
+                    messages.value.push({
+                        role: 'assistant',
+                        content: streamContent.value,
+                        sources: sources,
+                        showSources: false,
+                    });
+                }
+            } catch (e) {
+                showToast('请求失败: ' + e.message, 'error');
+            } finally {
+                streaming.value = false;
+                streamContent.value = '';
+                scrollToBottom();
+            }
+        }
+
+        // Init
+        onMounted(() => {
+            loadKBs();
+        });
+
+        return {
+            knowledgeBases, selectedKB, documents, messages, question,
+            streaming, streamContent, uploading, showCreateKB, isDragover,
+            newKB, toast, chatMessages, questionInput, fileInput,
+            showToast, scrollToBottom, autoResize, renderMarkdown,
+            loadKBs, createKB, deleteKB, selectKB,
+            loadDocuments, handleFileSelect, handleDrop, deleteDoc,
+            sendQuestion,
+        };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>
