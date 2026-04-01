@@ -5,8 +5,11 @@ from fastapi.responses import FileResponse
 import os
 
 from app.config import settings
+from app.routers import knowledge_base
 
 app = FastAPI(title="RAG Q&A System", version="1.0.0")
+
+app.include_router(knowledge_base.router)
 
 app.add_middleware(
     CORSMiddleware,
