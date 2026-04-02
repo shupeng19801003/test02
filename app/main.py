@@ -5,13 +5,14 @@ from fastapi.responses import FileResponse
 import os
 
 from app.config import settings
-from app.routers import knowledge_base, document, chat
+from app.routers import knowledge_base, document, chat, audit
 
 app = FastAPI(title="RAG Q&A System", version="1.0.0")
 
 app.include_router(knowledge_base.router)
 app.include_router(document.router)
 app.include_router(chat.router)
+app.include_router(audit.router)
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,3 +40,7 @@ if os.path.isdir(frontend_dir):
     @app.get("/")
     async def serve_frontend():
         return FileResponse(os.path.join(frontend_dir, "index.html"))
+
+    @app.get("/audit")
+    async def serve_audit():
+        return FileResponse(os.path.join(frontend_dir, "audit.html"))

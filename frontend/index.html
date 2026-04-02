@@ -10,7 +10,16 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; height: 100vh; }
 
-        .app { display: flex; height: 100vh; }
+        /* Navbar */
+        .navbar { background: #fff; border-bottom: 1px solid #e4e7ed; padding: 0 32px; display: flex; align-items: center; height: 56px; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+        .navbar .logo { font-size: 17px; font-weight: 700; color: #1d2129; margin-right: 40px; white-space: nowrap; }
+        .navbar .logo span { color: #409eff; }
+        .nav-links { display: flex; gap: 8px; }
+        .nav-links a { text-decoration: none; color: #4e5969; font-size: 14px; padding: 8px 16px; border-radius: 6px; transition: all .2s; }
+        .nav-links a:hover { background: #f2f3f5; color: #1d2129; }
+        .nav-links a.active { background: #e8f3ff; color: #409eff; font-weight: 600; }
+
+        .app { display: flex; height: calc(100vh - 56px); }
 
         /* Sidebar */
         .sidebar { width: 320px; background: #fff; border-right: 1px solid #e4e7ed; display: flex; flex-direction: column; flex-shrink: 0; }
@@ -113,6 +122,15 @@
 <div id="app">
     <!-- Toast notifications -->
     <div v-if="toast.show" :class="['toast', toast.type]">{{ toast.message }}</div>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="logo">RAG <span>智能平台</span></div>
+        <div class="nav-links">
+            <a href="/" class="active">知识库问答</a>
+            <a href="/audit">文档审查</a>
+        </div>
+    </nav>
 
     <div class="app">
         <!-- Sidebar -->
