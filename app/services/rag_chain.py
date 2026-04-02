@@ -42,7 +42,7 @@ async def generate_rag_stream(
             embedding_function=get_embeddings(),
         )
     except Exception as e:
-        yield f"event: error\ndata: {json.dumps({'message': f'Knowledge base not found: {e}'}, ensure_ascii=False)}\n\n"
+        yield {"event": "error", "data": json.dumps({"message": f"Knowledge base not found: {e}"}, ensure_ascii=False)}
         return
 
     try:
@@ -52,11 +52,11 @@ async def generate_rag_stream(
         )
         docs = await retriever.ainvoke(question)
     except Exception as e:
-        yield f"event: error\ndata: {json.dumps({'message': f'Retrieval failed: {e}'}, ensure_ascii=False)}\n\n"
+        yield {"event": "error", "data": json.dumps({"message": f"Retrieval failed: {e}"}, ensure_ascii=False)}
         return
 
     if not docs:
-        yield f"event: error\ndata: {json.dumps({'message': '未找到相关文档内容'}, ensure_ascii=False)}\n\n"
+        yield {"event": "error", "data": json.dumps({"message": "未找到相关文档内容"}, ensure_ascii=False)}
         return
 
     # Yield source information
@@ -66,7 +66,7 @@ async def generate_rag_stream(
             "chunk_text": doc.page_content[:200],
             "page": doc.metadata.get("page", ""),
         }
-        yield f"event: source\ndata: {json.dumps(source_data, ensure_ascii=False)}\n\n"
+        yield {"event": "source", "data": json.dumps(source_data, ensure_ascii=False)}
 
     # Build prompt and stream LLM response
     context = _build_context(docs)
@@ -85,9 +85,9 @@ async def generate_rag_stream(
     try:
         async for chunk in llm.astream(messages):
             if chunk.content:
-                yield f"event: token\ndata: {json.dumps({'content': chunk.content}, ensure_ascii=False)}\n\n"
+                yield {"event": "token", "data": json.dumps({"content": chunk.content}, ensure_ascii=False)}
     except Exception as e:
-        yield f"event: error\ndata: {json.dumps({'message': f'LLM generation failed: {e}'}, ensure_ascii=False)}\n\n"
+        yield {"event": "error", "data": json.dumps({"message": f"LLM generation failed: {e}"}, ensure_ascii=False)}
         return
 
-    yield f"event: done\ndata: {json.dumps({'message': 'complete'})}\n\n"
+    yield {"event": "done", "data": json.dumps({"message": "complete"})}
