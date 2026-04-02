@@ -8,9 +8,11 @@ class Settings(BaseSettings):
     llm_model_name: str = "local-model"
 
     # Embedding
+    # Provider: "local" uses HuggingFace sentence-transformers; "api" uses OpenAI-compatible API
+    embedding_provider: str = "local"
+    embedding_model_name: str = "BAAI/bge-base-zh-v1.5"
     embedding_base_url: str = "http://localhost:1234/v1"
     embedding_api_key: str = "lm-studio"
-    embedding_model_name: str = "text-embedding-model"
 
     # ChromaDB
     chroma_persist_dir: str = "./data/chroma_db"

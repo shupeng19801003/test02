@@ -1,3 +1,5 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+
 # Web framework
 fastapi>=0.110.0
 uvicorn[standard]>=0.27.0
@@ -27,3 +29,9 @@ python-dotenv>=1.0.0
 
 # Utilities
 aiofiles>=23.0.0
+
+
+# 向量化核心库
+sentence-transformers>=3.0.0
+# AI计算基础（CPU版）
+torch>=2.2.0
