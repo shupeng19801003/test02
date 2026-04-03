@@ -9,10 +9,11 @@ import io
 import csv
 
 from app.config import settings
-from app.models import AuditResponse, AuditHitInfo
+from app.models import AuditResponse, AuditHitInfo, AuditByIdsRequest, MultiAuditResponse
 from app.utils.file_utils import is_supported_file
-from app.services.document_processor import process_file
+from app.services.document_processor import process_file, DocumentSection
 from app.services.audit_engine import audit_sections, get_available_categories
+from app.services.document_store import get_document, get_sections_multi
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
 
@@ -164,4 +165,105 @@ def _export_json(result):
         iter([content]),
         media_type="application/json; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename=audit_{safe_name}.json"},
+    )
+
+
+# ---------------------------------------------------------------------------
+# Library-based endpoints (audit by doc_ids from unified document library)
+# ---------------------------------------------------------------------------
+
+def _audit_docs_by_ids(doc_ids: list[str], categories: list[str] | None) -> list:
+    """Shared logic: audit multiple documents by their library IDs."""
+    sections_map = get_sections_multi(doc_ids)
+    if not sections_map:
+        raise HTTPException(status_code=404, detail="No documents found for given IDs")
+
+    results = []
+    for did, raw_sections in sections_map.items():
+        doc = get_document(did)
+        filename = doc.name if doc else did
+        doc_sections = [
+            DocumentSection(text=s["text"], metadata=s.get("metadata", {}))
+            for s in raw_sections
+        ]
+        result = audit_sections(doc_sections, filename, categories)
+        results.append(result)
+    return results
+
+
+def _to_response(result) -> AuditResponse:
+    return AuditResponse(
+        filename=result.filename,
+        total_hits=result.total_hits,
+        risk_level=result.risk_level,
+        hits=[
+            AuditHitInfo(
+                category=h.category,
+                category_label=h.category_label,
+                keyword=h.keyword,
+                description=h.description,
+                location=h.location,
+                context=h.context,
+                severity=h.severity,
+                suggestion=h.suggestion,
+            )
+            for h in result.hits
+        ],
+        category_summary=result.category_summary,
+    )
+
+
+def _overall_risk(results: list) -> str:
+    levels = {"safe": 0, "low": 1, "medium": 2, "high": 3}
+    max_level = max(levels.get(r.risk_level, 0) for r in results) if results else 0
+    return {0: "safe", 1: "low", 2: "medium", 3: "high"}[max_level]
+
+
+@router.post("/scan", response_model=MultiAuditResponse)
+async def audit_by_ids(req: AuditByIdsRequest):
+    """Audit documents from the unified library by their IDs."""
+    if not req.doc_ids:
+        raise HTTPException(status_code=400, detail="No document IDs provided")
+
+    cat_list = req.categories or None
+    results = _audit_docs_by_ids(req.doc_ids, cat_list)
+
+    responses = [_to_response(r) for r in results]
+    total = sum(r.total_hits for r in results)
+    return MultiAuditResponse(
+        results=responses,
+        overall_risk_level=_overall_risk(results),
+        overall_total_hits=total,
+    )
+
+
+@router.post("/export-by-ids")
+async def export_by_ids(req: AuditByIdsRequest):
+    """Audit documents from the library and export a combined CSV report."""
+    if not req.doc_ids:
+        raise HTTPException(status_code=400, detail="No document IDs provided")
+
+    cat_list = req.categories or None
+    results = _audit_docs_by_ids(req.doc_ids, cat_list)
+
+    # Build combined CSV
+    buf = io.StringIO()
+    buf.write("\ufeff")
+    writer = csv.writer(buf)
+    writer.writerow([
+        "文件名", "风险等级", "类别", "关键词",
+        "说明", "位置", "上下文", "严重程度", "处理建议",
+    ])
+    for result in results:
+        for h in result.hits:
+            writer.writerow([
+                result.filename, result.risk_level,
+                h.category_label, h.keyword, h.description,
+                h.location, h.context, h.severity, h.suggestion,
+            ])
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=audit_report.csv"},
     )
