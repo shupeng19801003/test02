@@ -5,13 +5,19 @@ from fastapi.responses import FileResponse
 import os
 
 from app.config import settings
-from app.routers import knowledge_base, document, chat
+from app.routers import knowledge_base, document, chat, audit
+from app.routers import document_library
 
-app = FastAPI(title="RAG Q&A System", version="1.0.0")
+app = FastAPI(title="RAG Q&A System", version="2.0.0")
 
+# Legacy routers (backward compatible)
 app.include_router(knowledge_base.router)
 app.include_router(document.router)
 app.include_router(chat.router)
+app.include_router(audit.router)
+
+# New unified document library router
+app.include_router(document_library.router)
 
 app.add_middleware(
     CORSMiddleware,

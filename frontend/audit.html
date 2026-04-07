@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文档内容审查 - RAG 智能问答系统</title>
+    <script src="https://unpkg.byted-static.com/vue@3/dist/vue.global.prod.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft YaHei', sans-serif; background: #f0f2f5; color: #1d2129; min-height: 100vh; }
+
+        /* ── Navbar ── */
+        .navbar { background: #fff; border-bottom: 1px solid #e5e6eb; padding: 0 32px; display: flex; align-items: center; height: 56px; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+        .navbar .logo { font-size: 17px; font-weight: 700; color: #1d2129; margin-right: 40px; white-space: nowrap; }
+        .navbar .logo span { color: #409eff; }
+        .nav-links { display: flex; gap: 8px; }
+        .nav-links a { text-decoration: none; color: #4e5969; font-size: 14px; padding: 8px 16px; border-radius: 6px; transition: all .2s; }
+        .nav-links a:hover { background: #f2f3f5; color: #1d2129; }
+        .nav-links a.active { background: #e8f3ff; color: #409eff; font-weight: 600; }
+
+        /* ── Layout ── */
+        .main-layout { display: flex; gap: 20px; max-width: 1440px; margin: 24px auto; padding: 0 24px; min-height: calc(100vh - 104px); }
+        .left-panel { width: 360px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
+        .right-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+
+        /* ── Cards ── */
+        .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); overflow: hidden; transition: box-shadow .25s; }
+        .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+        .card-header { padding: 16px 20px; border-bottom: 1px solid #f2f3f5; display: flex; align-items: center; justify-content: space-between; }
+        .card-header h3 { font-size: 15px; font-weight: 600; color: #1d2129; }
+        .card-body { padding: 20px; }
+
+        /* ── Upload area ── */
+        .upload-zone { border: 2px dashed #d9d9d9; border-radius: 10px; padding: 36px 20px; text-align: center; cursor: pointer; position: relative; transition: all .25s; }
+        .upload-zone:hover, .upload-zone.dragover { border-color: #409eff; background: #f0f7ff; }
+        .upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+        .upload-icon { font-size: 40px; color: #c0c4cc; margin-bottom: 12px; }
+        .upload-zone p { font-size: 14px; color: #4e5969; }
+        .upload-zone .hint { font-size: 12px; color: #86909c; margin-top: 6px; }
+
+        .file-info { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #f7f8fa; border-radius: 8px; margin-top: 12px; }
+        .file-info .file-icon { font-size: 28px; }
+        .file-info .file-detail { flex: 1; min-width: 0; }
+        .file-info .file-name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .file-info .file-size { font-size: 12px; color: #86909c; }
+        .file-info .remove-btn { color: #c0c4cc; cursor: pointer; font-size: 18px; padding: 4px; border-radius: 4px; transition: all .2s; }
+        .file-info .remove-btn:hover { color: #f56c6c; background: #fef0f0; }
+
+        /* ── Category checkboxes ── */
+        .category-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .cat-check { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid #e5e6eb; border-radius: 8px; cursor: pointer; transition: all .2s; font-size: 13px; }
+        .cat-check:hover { border-color: #409eff; background: #f0f7ff; }
+        .cat-check.checked { border-color: #409eff; background: #e8f3ff; color: #409eff; }
+        .cat-check input { display: none; }
+        .cat-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .cat-check.checked .cat-dot { box-shadow: 0 0 0 2px #409eff44; }
+
+        /* ── Buttons ── */
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all .2s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-primary { background: #409eff; color: #fff; }
+        .btn-primary:hover { background: #337ecc; }
+        .btn-primary:disabled { background: #a0cfff; cursor: not-allowed; }
+        .btn-outline { background: #fff; color: #409eff; border: 1px solid #409eff; }
+        .btn-outline:hover { background: #ecf5ff; }
+        .btn-success { background: #67c23a; color: #fff; }
+        .btn-success:hover { background: #529b2e; }
+        .btn-block { width: 100%; justify-content: center; }
+        .btn-sm { padding: 6px 14px; font-size: 13px; }
+
+        /* ── Risk badge ── */
+        .risk-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; }
+        .risk-safe { background: #e8f5e9; color: #2e7d32; }
+        .risk-low { background: #fff8e1; color: #f57f17; }
+        .risk-medium { background: #fff3e0; color: #e65100; }
+        .risk-high { background: #fbe9e7; color: #c62828; }
+
+        /* ── Summary cards row ── */
+        .summary-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        .summary-card { background: #fff; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.05); transition: transform .2s; }
+        .summary-card:hover { transform: translateY(-2px); }
+        .summary-card .num { font-size: 28px; font-weight: 700; line-height: 1.2; }
+        .summary-card .label { font-size: 12px; color: #86909c; margin-top: 4px; }
+
+        /* ── Category bar ── */
+        .cat-bar-list { display: flex; flex-direction: column; gap: 10px; }
+        .cat-bar-item { display: flex; align-items: center; gap: 12px; }
+        .cat-bar-label { width: 80px; font-size: 13px; color: #4e5969; text-align: right; flex-shrink: 0; }
+        .cat-bar-track { flex: 1; height: 22px; background: #f2f3f5; border-radius: 6px; overflow: hidden; position: relative; }
+        .cat-bar-fill { height: 100%; border-radius: 6px; transition: width .5s ease; display: flex; align-items: center; padding-left: 8px; font-size: 11px; color: #fff; font-weight: 600; min-width: 24px; }
+        .cat-bar-count { font-size: 13px; color: #86909c; width: 32px; text-align: center; flex-shrink: 0; }
+
+        /* ── Results table ── */
+        .results-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .results-table th { background: #f7f8fa; padding: 10px 12px; text-align: left; font-weight: 600; color: #4e5969; border-bottom: 1px solid #e5e6eb; position: sticky; top: 0; }
+        .results-table td { padding: 10px 12px; border-bottom: 1px solid #f2f3f5; vertical-align: top; }
+        .results-table tbody tr { transition: background .15s; }
+        .results-table tbody tr:hover { background: #f7f8fa; }
+        .results-table .kw-tag { background: #fef0f0; color: #c62828; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+        .severity-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+        .severity-high .severity-dot { background: #f56c6c; }
+        .severity-medium .severity-dot { background: #e6a23c; }
+        .severity-low .severity-dot { background: #67c23a; }
+        .context-text { color: #4e5969; line-height: 1.5; }
+        .context-text mark { background: #fff176; padding: 0 2px; border-radius: 2px; }
+
+        .table-scroll { max-height: 520px; overflow-y: auto; }
+
+        /* ── Empty state ── */
+        .empty-state { text-align: center; padding: 60px 20px; color: #86909c; }
+        .empty-state .empty-icon { font-size: 56px; margin-bottom: 12px; color: #d9d9d9; }
+        .empty-state p { font-size: 14px; }
+
+        /* ── Severity filter tabs ── */
+        .filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+        .filter-tab { padding: 5px 14px; border-radius: 16px; font-size: 12px; cursor: pointer; border: 1px solid #e5e6eb; transition: all .2s; color: #4e5969; background: #fff; }
+        .filter-tab:hover { border-color: #409eff; color: #409eff; }
+        .filter-tab.active { background: #409eff; color: #fff; border-color: #409eff; }
+        .filter-tab .count { margin-left: 4px; opacity: .75; }
+
+        /* ── Toast ── */
+        .toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; font-size: 13px; z-index: 1000; color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,.15); transition: opacity .3s; }
+        .toast.success { background: #67c23a; }
+        .toast.error { background: #f56c6c; }
+
+        /* ── Loading overlay ── */
+        .loading-overlay { position: absolute; inset: 0; background: rgba(255,255,255,.85); display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 12px; z-index: 10; }
+        .spinner { width: 36px; height: 36px; border: 3px solid #e5e6eb; border-top-color: #409eff; border-radius: 50%; animation: spin .8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { margin-top: 12px; font-size: 14px; color: #4e5969; }
+
+        /* ── Action bar ── */
+        .action-bar { display: flex; gap: 10px; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid #f2f3f5; background: #fafafa; border-radius: 0 0 12px 12px; }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #dcdfe6; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #c0c4cc; }
+
+        /* ── Animations ── */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn .35s ease-out; }
+    </style>
+</head>
+<body>
+<div id="app">
+    <!-- Toast -->
+    <div v-if="toast.show" :class="['toast', toast.type]">{{ toast.message }}</div>
+
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="logo">RAG <span>智能平台</span></div>
+        <div class="nav-links">
+            <a href="/">知识库问答</a>
+            <a href="/audit" class="active">文档审查</a>
+        </div>
+    </nav>
+
+    <div class="main-layout">
+        <!-- ── Left Panel ── -->
+        <div class="left-panel">
+            <!-- Upload Card -->
+            <div class="card">
+                <div class="card-header"><h3>上传文档</h3></div>
+                <div class="card-body">
+                    <div :class="['upload-zone', { dragover: isDragover }]"
+                         @dragover.prevent="isDragover = true"
+                         @dragleave="isDragover = false"
+                         @drop.prevent="handleDrop">
+                        <input type="file"
+                               accept=".pdf,.docx,.xlsx,.pptx,.txt,.md"
+                               @change="handleFileSelect"
+                               ref="fileInput">
+                        <div class="upload-icon">&#128196;</div>
+                        <p>点击或拖拽文件到此处</p>
+                        <p class="hint">支持 PDF / Word / Excel / PPT / TXT / Markdown</p>
+                    </div>
+                    <div v-if="selectedFile" class="file-info fade-in">
+                        <div class="file-icon">{{ fileIcon }}</div>
+                        <div class="file-detail">
+                            <div class="file-name" :title="selectedFile.name">{{ selectedFile.name }}</div>
+                            <div class="file-size">{{ formatSize(selectedFile.size) }}</div>
+                        </div>
+                        <span class="remove-btn" @click="clearFile" title="移除">&times;</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Category Config Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>审查类别</h3>
+                    <button class="btn btn-sm btn-outline" @click="toggleAllCats">
+                        {{ allCatsSelected ? '取消全选' : '全选' }}
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="category-grid">
+                        <label v-for="cat in categories" :key="cat.key"
+                               :class="['cat-check', { checked: selectedCats.includes(cat.key) }]">
+                            <input type="checkbox" :value="cat.key" v-model="selectedCats">
+                            <span class="cat-dot" :style="{ background: catColor(cat.key) }"></span>
+                            {{ cat.label }}
+                        </label>
+                    </div>
+
+                    <!-- 开始审查按钮 -->
+                    <button class="btn btn-primary btn-block"
+                            :disabled="!selectedFile || auditing"
+                            @click="startAudit"
+                            style="margin-top: 16px; padding: 12px; font-size: 15px;">
+                        <template v-if="auditing">
+                            <span class="spinner" style="width:18px;height:18px;border-width:2px;"></span>
+                            审查中...
+                        </template>
+                        <template v-else>
+                            &#128269; 开始审查
+                        </template>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Right Panel ── -->
+        <div class="right-panel">
+            <!-- Empty state -->
+            <div v-if="!result && !auditing" class="card" style="flex:1; display:flex; align-items:center; justify-content:center;">
+                <div class="empty-state">
+                    <div class="empty-icon">&#128203;</div>
+                    <p>上传文档并点击"开始审查"</p>
+                    <p style="font-size:12px; margin-top:4px; color:#c0c4cc;">系统将自动检测敏感词、违规内容和合规性问题</p>
+                </div>
+            </div>
+
+            <!-- Loading -->
+            <div v-if="auditing && !result" class="card" style="flex:1; position:relative; min-height:300px;">
+                <div class="loading-overlay">
+                    <div class="spinner"></div>
+                    <div class="loading-text">正在审查文档，请稍候...</div>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <template v-if="result">
+                <!-- Summary row -->
+                <div class="summary-row fade-in">
+                    <div class="summary-card">
+                        <div :class="'risk-badge risk-' + result.risk_level" style="justify-content:center; width:100%; font-size:16px; padding:10px;">
+                            {{ riskLabel(result.risk_level) }}
+                        </div>
+                        <div class="label" style="margin-top:8px;">总风险等级</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="num" style="color:#409eff;">{{ result.total_hits }}</div>
+                        <div class="label">问题总数</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="num" style="color:#e6a23c;">{{ Object.keys(result.category_summary).length }}</div>
+                        <div class="label">涉及类别</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="num" style="color:#67c23a;">{{ result.filename.split('.').pop().toUpperCase() }}</div>
+                        <div class="label">文件类型</div>
+                    </div>
+                </div>
+
+                <!-- Category distribution -->
+                <div v-if="result.total_hits > 0" class="card fade-in">
+                    <div class="card-header"><h3>类别分布</h3></div>
+                    <div class="card-body">
+                        <div class="cat-bar-list">
+                            <div v-for="(count, label) in result.category_summary" :key="label" class="cat-bar-item">
+                                <div class="cat-bar-label">{{ label }}</div>
+                                <div class="cat-bar-track">
+                                    <div class="cat-bar-fill" :style="{ width: barWidth(count) + '%', background: catColorByLabel(label) }">
+                                        {{ count }}
+                                    </div>
+                                </div>
+                                <div class="cat-bar-count">{{ count }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Detailed findings -->
+                <div class="card fade-in" style="flex:1; display:flex; flex-direction:column;">
+                    <div class="card-header" style="flex-wrap:wrap; gap:10px;">
+                        <h3>审查详情 <span style="font-weight:400; color:#86909c; font-size:13px;">({{ filteredHits.length }} 条)</span></h3>
+                        <div class="filter-tabs">
+                            <span :class="['filter-tab', { active: severityFilter === 'all' }]" @click="severityFilter = 'all'">
+                                全部<span class="count">{{ result.total_hits }}</span>
+                            </span>
+                            <span :class="['filter-tab', { active: severityFilter === 'high' }]" @click="severityFilter = 'high'" style="border-color:#fde2e2; color:#c62828;">
+                                高风险<span class="count">{{ countBySeverity('high') }}</span>
+                            </span>
+                            <span :class="['filter-tab', { active: severityFilter === 'medium' }]" @click="severityFilter = 'medium'" style="border-color:#faecd8; color:#e65100;">
+                                中风险<span class="count">{{ countBySeverity('medium') }}</span>
+                            </span>
+                            <span :class="['filter-tab', { active: severityFilter === 'low' }]" @click="severityFilter = 'low'" style="border-color:#e1f3d8; color:#2e7d32;">
+                                低风险<span class="count">{{ countBySeverity('low') }}</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div v-if="filteredHits.length" class="table-scroll" style="flex:1;">
+                        <table class="results-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:50px;">#</th>
+                                    <th style="width:80px;">严重程度</th>
+                                    <th style="width:80px;">类别</th>
+                                    <th style="width:90px;">关键词</th>
+                                    <th style="width:80px;">位置</th>
+                                    <th>上下文</th>
+                                    <th style="width:180px;">处理建议</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="(hit, idx) in filteredHits" :key="idx" :class="'severity-' + hit.severity">
+                                    <td>{{ idx + 1 }}</td>
+                                    <td>
+                                        <span class="severity-dot"></span>
+                                        {{ severityLabel(hit.severity) }}
+                                    </td>
+                                    <td>{{ hit.category_label }}</td>
+                                    <td><span class="kw-tag">{{ hit.keyword }}</span></td>
+                                    <td>{{ hit.location }}</td>
+                                    <td><span class="context-text" v-html="highlightContext(hit.context, hit.keyword)"></span></td>
+                                    <td style="color:#4e5969; font-size:12px;">{{ hit.suggestion }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div v-else class="card-body" style="text-align:center; color:#86909c; padding:40px;">
+                        <template v-if="result.total_hits === 0">
+                            &#9989; 文档审查通过，未发现风险内容
+                        </template>
+                        <template v-else>
+                            当前筛选条件下无匹配项
+                        </template>
+                    </div>
+
+                    <!-- Action bar -->
+                    <div v-if="result.total_hits > 0" class="action-bar">
+                        <button class="btn btn-outline btn-sm" @click="exportReport('csv')">&#128196; 导出 CSV</button>
+                        <button class="btn btn-outline btn-sm" @click="exportReport('json')">&#128196; 导出 JSON</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+
+const API_BASE = window.location.origin;
+
+const CAT_COLORS = {
+    political: '#e53935',
+    violence: '#f4511e',
+    pornography: '#8e24aa',
+    privacy: '#1e88e5',
+    compliance: '#43a047',
+};
+const CAT_LABEL_MAP = {};
+
+// Fallback categories in case API is unavailable
+const FALLBACK_CATEGORIES = [
+    { key: 'political', label: '涉政敏感' },
+    { key: 'violence', label: '暴力相关' },
+    { key: 'pornography', label: '涉黄内容' },
+    { key: 'privacy', label: '隐私泄露' },
+    { key: 'compliance', label: '合规标记' },
+];
+
+createApp({
+    setup() {
+        // State
+        const categories = ref([]);
+        const selectedCats = ref([]);
+        const selectedFile = ref(null);
+        const isDragover = ref(false);
+        const auditing = ref(false);
+        const result = ref(null);
+        const severityFilter = ref('all');
+        const toast = reactive({ show: false, message: '', type: 'success' });
+        const fileInput = ref(null);
+
+        function showToast(message, type = 'success') {
+            toast.show = true;
+            toast.message = message;
+            toast.type = type;
+            setTimeout(() => { toast.show = false; }, 3000);
+        }
+
+        // File helpers
+        const fileIcon = computed(() => {
+            if (!selectedFile.value) return '';
+            const ext = selectedFile.value.name.split('.').pop().toLowerCase();
+            const icons = { pdf: '\u{1F4D5}', docx: '\u{1F4D8}', xlsx: '\u{1F4CA}', pptx: '\u{1F4CA}', txt: '\u{1F4DD}', md: '\u{1F4DD}' };
+            return icons[ext] || '\u{1F4C4}';
+        });
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) { selectedFile.value = file; result.value = null; }
+        }
+
+        function handleDrop(e) {
+            isDragover.value = false;
+            const file = e.dataTransfer.files[0];
+            if (file) { selectedFile.value = file; result.value = null; }
+        }
+
+        function clearFile() {
+            selectedFile.value = null;
+            result.value = null;
+            if (fileInput.value) fileInput.value.value = '';
+        }
+
+        // Categories
+        async function loadCategories() {
+            try {
+                const res = await fetch(`${API_BASE}/api/audit/categories`);
+                if (res.ok) {
+                    categories.value = await res.json();
+                } else {
+                    categories.value = FALLBACK_CATEGORIES;
+                }
+            } catch (e) {
+                categories.value = FALLBACK_CATEGORIES;
+            }
+            selectedCats.value = categories.value.map(c => c.key);
+            categories.value.forEach(c => { CAT_LABEL_MAP[c.label] = c.key; });
+        }
+
+        const allCatsSelected = computed(() =>
+            categories.value.length > 0 && selectedCats.value.length === categories.value.length
+        );
+
+        function toggleAllCats() {
+            if (allCatsSelected.value) {
+                selectedCats.value = [];
+            } else {
+                selectedCats.value = categories.value.map(c => c.key);
+            }
+        }
+
+        function catColor(key) { return CAT_COLORS[key] || '#86909c'; }
+        function catColorByLabel(label) {
+            const key = CAT_LABEL_MAP[label];
+            return CAT_COLORS[key] || '#86909c';
+        }
+
+        // Audit
+        async function startAudit() {
+            if (!selectedFile.value || auditing.value) return;
+            auditing.value = true;
+            result.value = null;
+            severityFilter.value = 'all';
+
+            const formData = new FormData();
+            formData.append('file', selectedFile.value);
+            formData.append('categories', selectedCats.value.join(','));
+
+            try {
+                const res = await fetch(`${API_BASE}/api/audit`, {
+                    method: 'POST',
+                    body: formData,
+                });
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.detail || 'Audit failed');
+                }
+                result.value = await res.json();
+                if (result.value.total_hits === 0) {
+                    showToast('审查完成，未发现风险内容', 'success');
+                } else {
+                    showToast(`审查完成，发现 ${result.value.total_hits} 个问题`, 'error');
+                }
+            } catch (e) {
+                showToast(e.message, 'error');
+            } finally {
+                auditing.value = false;
+            }
+        }
+
+        // Filtering
+        const filteredHits = computed(() => {
+            if (!result.value) return [];
+            if (severityFilter.value === 'all') return result.value.hits;
+            return result.value.hits.filter(h => h.severity === severityFilter.value);
+        });
+
+        function countBySeverity(s) {
+            if (!result.value) return 0;
+            return result.value.hits.filter(h => h.severity === s).length;
+        }
+
+        // Display helpers
+        function riskLabel(level) {
+            return { safe: '\u2705 安全', low: '\u26A0\uFE0F 低风险', medium: '\u{1F536} 中风险', high: '\u274C 高风险' }[level] || level;
+        }
+
+        function severityLabel(s) {
+            return { high: '高', medium: '中', low: '低' }[s] || s;
+        }
+
+        function barWidth(count) {
+            if (!result.value || result.value.total_hits === 0) return 0;
+            return Math.max(8, (count / result.value.total_hits) * 100);
+        }
+
+        function highlightContext(ctx, keyword) {
+            if (!keyword) return escapeHtml(ctx);
+            const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            try {
+                return escapeHtml(ctx).replace(
+                    new RegExp(escaped, 'gi'),
+                    match => `<mark>${match}</mark>`
+                );
+            } catch {
+                return escapeHtml(ctx);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Export
+        async function exportReport(format) {
+            if (!selectedFile.value) return;
+            const formData = new FormData();
+            formData.append('file', selectedFile.value);
+            formData.append('categories', selectedCats.value.join(','));
+            formData.append('format', format);
+
+            try {
+                const res = await fetch(`${API_BASE}/api/audit/export`, {
+                    method: 'POST',
+                    body: formData,
+                });
+                if (!res.ok) throw new Error('Export failed');
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const safeName = selectedFile.value.name.replace(/\.[^.]+$/, '');
+                a.href = url;
+                a.download = `audit_${safeName}.${format === 'json' ? 'json' : 'csv'}`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('报告导出成功');
+            } catch (e) {
+                showToast('导出失败', 'error');
+            }
+        }
+
+        onMounted(loadCategories);
+
+        return {
+            categories, selectedCats, selectedFile, isDragover,
+            auditing, result, severityFilter, toast, fileInput,
+            allCatsSelected, filteredHits, fileIcon,
+            showToast, formatSize, handleFileSelect, handleDrop, clearFile,
+            toggleAllCats, catColor, catColorByLabel,
+            startAudit, countBySeverity,
+            riskLabel, severityLabel, barWidth, highlightContext,
+            exportReport,
+        };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>

@@ -1,525 +1,1247 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RAG 智能问答系统</title>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f7fa; color: #333; height: 100vh; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智审 — 文件智能审计系统</title>
+<script src="https://unpkg.com/vue@3.4.21/dist/vue.global.prod.js"></script>
+<script src="https://unpkg.com/marked@12.0.0/marked.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+[v-cloak]{display:none}
+*{margin:0;padding:0;box-sizing:border-box}
 
-        .app { display: flex; height: 100vh; }
+:root{
+  /* ── Ink & Paper Palette ── */
+  --primary:#1a6b6e;
+  --primary-hover:#145558;
+  --primary-bg:#e0f0f0;
+  --primary-glow:rgba(26,107,110,.12);
+  --accent:#b8784e;
+  --accent-hover:#9e6640;
+  --accent-bg:#fdf3eb;
+  --success:#2d8659;
+  --success-bg:#e6f5ec;
+  --warning:#c49116;
+  --warning-bg:#fdf5e1;
+  --danger:#b33a3a;
+  --danger-bg:#fde8e8;
 
-        /* Sidebar */
-        .sidebar { width: 320px; background: #fff; border-right: 1px solid #e4e7ed; display: flex; flex-direction: column; flex-shrink: 0; }
-        .sidebar-header { padding: 20px; border-bottom: 1px solid #e4e7ed; }
-        .sidebar-header h2 { font-size: 18px; color: #303133; margin-bottom: 4px; }
-        .sidebar-header p { font-size: 12px; color: #909399; }
+  /* ── Surfaces ── */
+  --bg:#f5f2ed;
+  --bg-warm:#ece8e1;
+  --card:#fffefa;
+  --card-elevated:#ffffff;
+  --sidebar:#1c2a3a;
+  --sidebar-hover:#243548;
+  --sidebar-active:#2a4060;
+  --sidebar-text:#a0aec0;
+  --sidebar-text-bright:#e2e8f0;
 
-        .sidebar-section { padding: 16px 20px; border-bottom: 1px solid #e4e7ed; }
-        .sidebar-section h3 { font-size: 14px; color: #606266; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+  /* ── Borders & Depth ── */
+  --border:#ddd6cc;
+  --border-light:#eae5dd;
+  --shadow-sm:0 1px 3px rgba(28,42,58,.06);
+  --shadow:0 2px 12px rgba(28,42,58,.07);
+  --shadow-lg:0 8px 30px rgba(28,42,58,.1);
+  --shadow-primary:0 4px 14px rgba(26,107,110,.18);
 
-        .kb-list { list-style: none; max-height: 200px; overflow-y: auto; }
-        .kb-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
-        .kb-item:hover { background: #f5f7fa; }
-        .kb-item.active { background: #ecf5ff; color: #409eff; }
-        .kb-item .kb-name { font-size: 14px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .kb-item .kb-meta { font-size: 11px; color: #909399; }
-        .kb-item .delete-btn { opacity: 0; color: #f56c6c; cursor: pointer; font-size: 14px; padding: 2px 6px; }
-        .kb-item:hover .delete-btn { opacity: 1; }
+  /* ── Text ── */
+  --text:#2a3441;
+  --text-secondary:#5a6a7a;
+  --text-muted:#8c99a8;
 
-        /* Create KB form */
-        .create-form { display: flex; flex-direction: column; gap: 8px; }
-        .create-form input, .create-form textarea { padding: 8px 12px; border: 1px solid #dcdfe6; border-radius: 6px; font-size: 13px; outline: none; transition: border-color 0.2s; }
-        .create-form input:focus, .create-form textarea:focus { border-color: #409eff; }
-        .create-form textarea { resize: vertical; min-height: 40px; }
+  /* ── Shape ── */
+  --radius:10px;
+  --radius-lg:14px;
+  --radius-sm:6px;
+}
 
-        /* Buttons */
-        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
-        .btn-primary { background: #409eff; color: #fff; }
-        .btn-primary:hover { background: #337ecc; }
-        .btn-primary:disabled { background: #a0cfff; cursor: not-allowed; }
-        .btn-sm { padding: 5px 12px; font-size: 12px; }
-        .btn-danger { background: #f56c6c; color: #fff; }
-        .btn-danger:hover { background: #dd6161; }
-        .btn-text { background: none; color: #409eff; padding: 4px 8px; }
-        .btn-text:hover { background: #ecf5ff; }
+body{
+  font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  height:100vh;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+#app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 
-        /* Upload area */
-        .upload-area { border: 2px dashed #dcdfe6; border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
-        .upload-area:hover, .upload-area.dragover { border-color: #409eff; background: #ecf5ff; }
-        .upload-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-        .upload-area .upload-icon { font-size: 32px; color: #909399; margin-bottom: 8px; }
-        .upload-area p { font-size: 13px; color: #606266; }
-        .upload-area .hint { font-size: 11px; color: #909399; margin-top: 4px; }
+/* ══════════════════════════════ Navbar ══════════════════════════════ */
+.navbar{
+  background:var(--sidebar);
+  padding:0 32px;
+  display:flex;
+  align-items:center;
+  height:58px;
+  flex-shrink:0;
+  box-shadow:0 2px 20px rgba(28,42,58,.15);
+  position:relative;
+  z-index:10;
+}
+.navbar .logo{
+  font-family:'Crimson Pro',Georgia,'Noto Serif SC',serif;
+  font-size:20px;
+  font-weight:700;
+  color:var(--sidebar-text-bright);
+  margin-right:42px;
+  white-space:nowrap;
+  letter-spacing:-.02em;
+}
+.navbar .logo span{
+  color:var(--accent);
+  font-style:italic;
+}
+.nav-tabs{display:flex;gap:2px;height:100%}
+.nav-tab{
+  position:relative;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:0 22px;
+  font-size:13.5px;
+  font-weight:500;
+  color:var(--sidebar-text);
+  cursor:pointer;
+  border:none;
+  background:none;
+  transition:color .25s,background .25s;
+  border-radius:8px 8px 0 0;
+  letter-spacing:.01em;
+}
+.nav-tab:hover{color:var(--sidebar-text-bright);background:rgba(255,255,255,.05)}
+.nav-tab.active{color:#fff;background:rgba(255,255,255,.08)}
+.nav-tab.active::after{
+  content:'';
+  position:absolute;
+  bottom:0;left:12px;right:12px;
+  height:3px;
+  background:linear-gradient(90deg,var(--accent),var(--primary));
+  border-radius:3px 3px 0 0;
+}
 
-        /* Document list */
-        .doc-list { list-style: none; max-height: 180px; overflow-y: auto; }
-        .doc-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #f2f3f5; font-size: 13px; }
-        .doc-item:last-child { border-bottom: none; }
-        .doc-item .doc-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .doc-item .doc-chunks { color: #909399; font-size: 11px; margin: 0 8px; }
+/* ══════════════════════════════ Layout ══════════════════════════════ */
+.page-body{flex:1;min-height:0;overflow:hidden;display:flex;background:var(--bg)}
+.tab-content{display:none;width:100%;height:100%}
+.tab-content.active{display:flex}
 
-        /* Chat area */
-        .chat-area { flex: 1; display: flex; flex-direction: column; background: #f5f7fa; }
-        .chat-header { padding: 16px 24px; background: #fff; border-bottom: 1px solid #e4e7ed; }
-        .chat-header h3 { font-size: 16px; color: #303133; }
+/* ══════════════════════════════ Buttons ══════════════════════════════ */
+.btn{
+  padding:8px 18px;
+  border:none;
+  border-radius:var(--radius-sm);
+  cursor:pointer;
+  font-size:13px;
+  font-weight:600;
+  font-family:inherit;
+  transition:all .2s ease;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  letter-spacing:.01em;
+}
+.btn-primary{
+  background:var(--primary);
+  color:#fff;
+  box-shadow:var(--shadow-primary);
+}
+.btn-primary:hover{background:var(--primary-hover);transform:translateY(-1px);box-shadow:0 6px 18px rgba(26,107,110,.22)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{background:#992e2e}
+.btn-sm{padding:6px 13px;font-size:12px}
+.btn-ghost{
+  background:transparent;
+  color:var(--text-secondary);
+  border:1.5px solid var(--border);
+}
+.btn-ghost:hover{background:var(--bg-warm);color:var(--text);border-color:var(--text-muted)}
 
-        .chat-messages { flex: 1; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+/* ══════════════════════════════ Cards ══════════════════════════════ */
+.card{
+  background:var(--card);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+  border:1px solid var(--border-light);
+  transition:box-shadow .25s,transform .25s;
+}
+.card:hover{box-shadow:var(--shadow-lg)}
+.card-header{
+  padding:16px 20px;
+  border-bottom:1px solid var(--border-light);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:linear-gradient(180deg,rgba(245,242,237,.5),transparent);
+}
+.card-header h3{
+  font-family:'Crimson Pro',Georgia,serif;
+  font-size:15px;
+  font-weight:600;
+  color:var(--text);
+  letter-spacing:-.01em;
+}
 
-        .message { max-width: 80%; padding: 12px 16px; border-radius: 12px; font-size: 14px; line-height: 1.6; word-break: break-word; }
-        .message-user { align-self: flex-end; background: #409eff; color: #fff; border-bottom-right-radius: 4px; }
-        .message-assistant { align-self: flex-start; background: #fff; border: 1px solid #e4e7ed; border-bottom-left-radius: 4px; }
-        .message-assistant :deep(p) { margin-bottom: 8px; }
-        .message-assistant :deep(p:last-child) { margin-bottom: 0; }
-        .message-assistant :deep(code) { background: #f5f7fa; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
-        .message-assistant :deep(pre) { background: #f5f7fa; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
-        .message-assistant :deep(pre code) { background: none; padding: 0; }
+/* ══════════════════════════════ Side Panel ══════════════════════════════ */
+.side-panel{
+  width:300px;
+  flex-shrink:0;
+  border-right:1px solid var(--border);
+  background:var(--card);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  box-shadow:2px 0 12px rgba(28,42,58,.04);
+}
+.side-panel .panel-header{
+  padding:16px 18px;
+  border-bottom:1px solid var(--border-light);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:linear-gradient(180deg,var(--card-elevated),var(--card));
+}
+.side-panel .panel-header h3{
+  font-family:'Crimson Pro',Georgia,serif;
+  font-size:15px;
+  font-weight:600;
+  letter-spacing:-.01em;
+}
+.main-area{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 
-        .sources-toggle { font-size: 12px; color: #909399; cursor: pointer; margin-top: 8px; }
-        .sources-toggle:hover { color: #409eff; }
-        .sources-list { margin-top: 8px; padding: 8px; background: #f5f7fa; border-radius: 6px; font-size: 12px; color: #606266; }
-        .source-item { margin-bottom: 6px; padding: 6px 8px; background: #fff; border-radius: 4px; border-left: 3px solid #409eff; }
-        .source-item:last-child { margin-bottom: 0; }
-        .source-item .source-name { font-weight: 600; color: #409eff; }
-        .source-item .source-text { color: #909399; margin-top: 4px; font-size: 11px; }
+/* ══════════════════════════════ Upload Zone ══════════════════════════════ */
+.upload-zone{
+  border:2px dashed var(--border);
+  border-radius:var(--radius);
+  padding:22px 18px;
+  text-align:center;
+  cursor:pointer;
+  position:relative;
+  transition:all .3s ease;
+  margin:14px 16px;
+  background:repeating-linear-gradient(
+    -45deg,
+    transparent,transparent 8px,
+    rgba(26,107,110,.02) 8px,rgba(26,107,110,.02) 16px
+  );
+}
+.upload-zone:hover,.upload-zone.dragover{
+  border-color:var(--primary);
+  background:var(--primary-bg);
+  box-shadow:inset 0 0 20px rgba(26,107,110,.06);
+  transform:scale(1.01);
+}
+.upload-zone input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.upload-zone p{font-size:13px;color:var(--text-secondary);font-weight:500}
+.upload-zone .hint{font-size:11px;color:var(--text-muted);margin-top:6px;font-weight:400}
 
-        .chat-empty { flex: 1; display: flex; align-items: center; justify-content: center; color: #909399; font-size: 15px; }
+/* ══════════════════════════════ Folder Tree ══════════════════════════════ */
+.folder-list{list-style:none;overflow-y:auto;flex:1;padding:0}
+.folder-item{
+  padding:10px 18px;
+  cursor:pointer;
+  font-size:13px;
+  border-bottom:1px solid var(--border-light);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  transition:all .2s ease;
+}
+.folder-item:hover{background:var(--bg-warm)}
+.folder-item.active{background:var(--primary-bg);color:var(--primary);font-weight:600;border-left:3px solid var(--primary)}
+.folder-item .count{font-size:11px;color:var(--text-muted);margin-left:auto;background:var(--bg);padding:1px 8px;border-radius:10px;font-weight:600}
 
-        /* Chat input */
-        .chat-input { padding: 16px 24px; background: #fff; border-top: 1px solid #e4e7ed; display: flex; gap: 12px; align-items: flex-end; }
-        .chat-input textarea { flex: 1; padding: 10px 14px; border: 1px solid #dcdfe6; border-radius: 8px; font-size: 14px; resize: none; outline: none; max-height: 120px; min-height: 44px; font-family: inherit; transition: border-color 0.2s; }
-        .chat-input textarea:focus { border-color: #409eff; }
+/* ══════════════════════════════ Data Table ══════════════════════════════ */
+.data-table{width:100%;border-collapse:collapse;font-size:13px}
+.data-table th{
+  background:var(--bg-warm);
+  padding:11px 16px;
+  text-align:left;
+  font-weight:600;
+  font-size:12px;
+  color:var(--text-muted);
+  border-bottom:2px solid var(--border);
+  position:sticky;top:0;z-index:1;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.data-table td{padding:12px 16px;border-bottom:1px solid var(--border-light);vertical-align:middle}
+.data-table tbody tr{transition:all .2s ease;cursor:pointer;contain:layout}
+.data-table tbody tr:hover{background:var(--accent-bg)}
 
-        /* Status / loading */
-        .loading { display: inline-block; }
-        .loading::after { content: '...'; animation: dots 1.5s steps(4, end) infinite; }
-        @keyframes dots { 0%, 20% { content: ''; } 40% { content: '.'; } 60% { content: '..'; } 80%, 100% { content: '...'; } }
+/* ══════════════════════════════ Chat ══════════════════════════════ */
+.chat-messages{
+  flex:1;min-height:0;overflow-y:auto;
+  padding:24px;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  background:
+    radial-gradient(ellipse at 20% 50%,rgba(26,107,110,.03),transparent 70%),
+    radial-gradient(ellipse at 80% 80%,rgba(184,120,78,.03),transparent 70%),
+    var(--bg);
+}
+.chat-empty{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text-muted);
+  animation:fadeInUp .6s ease;
+}
+.msg{
+  max-width:72%;
+  padding:14px 18px;
+  border-radius:16px;
+  font-size:14px;
+  line-height:1.75;
+  word-break:break-word;
+  animation:msgSlide .35s ease;
+  contain:content;
+}
+@keyframes msgSlide{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 
-        .toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; background: #333; color: #fff; border-radius: 8px; font-size: 13px; z-index: 1000; transition: opacity 0.3s; }
-        .toast.success { background: #67c23a; }
-        .toast.error { background: #f56c6c; }
+.msg-user{
+  align-self:flex-end;
+  background:linear-gradient(135deg,var(--primary),#1d7a7e);
+  color:#fff;
+  border-bottom-right-radius:4px;
+  box-shadow:0 3px 12px rgba(26,107,110,.2);
+}
+.msg-bot{
+  align-self:flex-start;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-bottom-left-radius:4px;
+  box-shadow:var(--shadow-sm);
+}
+.msg-bot p{margin-bottom:8px}.msg-bot p:last-child{margin-bottom:0}
+.msg-bot code{
+  background:var(--bg-warm);
+  padding:2px 7px;
+  border-radius:4px;
+  font-size:13px;
+  font-family:'JetBrains Mono','Fira Code',monospace;
+  color:var(--accent-hover);
+}
+.msg-bot pre{
+  background:var(--sidebar);
+  color:#e2e8f0;
+  padding:14px;
+  border-radius:8px;
+  overflow-x:auto;
+  margin:10px 0;
+  font-family:'JetBrains Mono',monospace;
+  font-size:12.5px;
+  line-height:1.6;
+}
+.msg-bot pre code{background:none;padding:0;color:inherit}
 
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #dcdfe6; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #c0c4cc; }
-    </style>
+.chat-input-bar{
+  padding:16px 24px;
+  background:var(--card);
+  border-top:1px solid var(--border);
+  display:flex;
+  gap:12px;
+  align-items:flex-end;
+  flex-shrink:0;
+  box-shadow:0 -2px 12px rgba(28,42,58,.04);
+}
+.chat-input-bar textarea{
+  flex:1;resize:none;
+  min-height:42px;max-height:120px;
+  padding:11px 16px;
+  border:1.5px solid var(--border);
+  border-radius:var(--radius);
+  font-size:14px;
+  font-family:inherit;
+  outline:none;
+  transition:border-color .25s,box-shadow .25s;
+  background:var(--card-elevated);
+}
+.chat-input-bar textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow)}
+.sources-toggle{font-size:12px;color:var(--accent);cursor:pointer;margin-top:10px;font-weight:500;transition:color .2s}
+.sources-toggle:hover{color:var(--accent-hover);text-decoration:underline}
+.sources-list{margin-top:10px;font-size:12px}
+.source-item{
+  margin-bottom:8px;
+  padding:8px 10px;
+  background:var(--bg);
+  border-radius:var(--radius-sm);
+  border-left:3px solid var(--accent);
+  transition:background .2s;
+}
+.source-item:hover{background:var(--accent-bg)}
+
+/* ══════════════════════════════ Audit ══════════════════════════════ */
+.audit-category-bar{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  padding:16px 22px;
+  background:var(--card);
+  border-bottom:1px solid var(--border-light);
+  align-items:center;
+}
+.audit-category-bar label{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 14px;
+  border:1.5px solid var(--border);
+  border-radius:20px;
+  cursor:pointer;
+  font-size:12px;
+  font-weight:500;
+  transition:all .25s ease;
+  user-select:none;
+}
+.audit-category-bar label:hover{border-color:var(--primary);color:var(--primary)}
+.audit-category-bar label.active{
+  border-color:var(--primary);
+  background:var(--primary-bg);
+  color:var(--primary);
+  box-shadow:0 2px 8px rgba(26,107,110,.1);
+}
+.doc-selector{list-style:none;overflow-y:auto;flex:1;padding:0}
+.doc-selector li{
+  padding:10px 18px;
+  cursor:pointer;
+  font-size:13px;
+  border-bottom:1px solid var(--border-light);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  transition:all .2s ease;
+}
+.doc-selector li:hover{background:var(--bg-warm)}
+.doc-selector li.selected{background:var(--primary-bg);border-left:3px solid var(--primary)}
+.doc-selector .doc-meta{font-size:11px;color:var(--text-muted);margin-left:auto}
+
+/* ── Badges ── */
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:4px 12px;
+  border-radius:20px;
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:.02em;
+}
+.badge-safe{background:var(--success-bg);color:var(--success)}
+.badge-low{background:var(--warning-bg);color:var(--warning)}
+.badge-medium{background:var(--danger-bg);color:var(--danger)}
+.badge-high{background:#5c1a1a;color:#ffb3b3}
+
+/* ══════════════════════════════ Toast ══════════════════════════════ */
+.toast{
+  position:fixed;
+  top:22px;right:22px;
+  padding:13px 22px;
+  border-radius:var(--radius);
+  font-size:13px;
+  font-weight:500;
+  color:#fff;
+  z-index:9999;
+  animation:toastIn .4s ease;
+  box-shadow:var(--shadow-lg);
+}
+@keyframes toastIn{from{opacity:0;transform:translateY(-12px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+.toast.success{background:var(--success)}
+.toast.error{background:var(--danger)}
+
+/* ══════════════════════════════ Preview Panel ══════════════════════════════ */
+.preview-panel{
+  flex:1;
+  border-top:3px solid var(--accent);
+  display:flex;
+  flex-direction:column;
+  background:var(--card);
+  min-height:0;
+  animation:fadeInUp .3s ease;
+}
+.preview-header{
+  padding:12px 20px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  border-bottom:1px solid var(--border-light);
+  flex-shrink:0;
+  background:linear-gradient(180deg,var(--accent-bg),transparent);
+}
+.preview-body{
+  flex:1;overflow-y:auto;
+  padding:18px 20px;
+  font-size:13px;
+  line-height:1.85;
+  white-space:pre-wrap;
+  color:var(--text-secondary);
+}
+
+/* ══════════════════════════════ Spinner ══════════════════════════════ */
+.spinner{
+  display:inline-block;
+  width:18px;height:18px;
+  border:2.5px solid rgba(255,255,255,.25);
+  border-top-color:#fff;
+  border-radius:50%;
+  animation:spin .7s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ══════════════════════════════ Scrollbar ══════════════════════════════ */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;transition:background .2s}
+::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
+
+/* ══════════════════════════════ Modal ══════════════════════════════ */
+.modal-overlay{
+  position:fixed;inset:0;
+  background:rgba(28,42,58,.55);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  z-index:2000;
+  display:flex;align-items:center;justify-content:center;
+  animation:overlayIn .25s ease;
+}
+@keyframes overlayIn{from{opacity:0}to{opacity:1}}
+.modal{
+  background:var(--card);
+  border-radius:var(--radius-lg);
+  width:70vw;max-height:80vh;
+  display:flex;flex-direction:column;
+  box-shadow:0 20px 60px rgba(28,42,58,.25);
+  animation:modalIn .35s cubic-bezier(.21,1.02,.73,1);
+  border:1px solid var(--border-light);
+}
+@keyframes modalIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.modal-header{
+  padding:18px 24px;
+  border-bottom:1px solid var(--border-light);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.modal-header h3{
+  font-family:'Crimson Pro',Georgia,serif;
+  font-size:17px;
+  font-weight:600;
+}
+.modal-close{
+  background:none;border:none;
+  font-size:22px;cursor:pointer;
+  color:var(--text-muted);
+  padding:4px 10px;border-radius:var(--radius-sm);
+  transition:all .2s;
+}
+.modal-close:hover{background:var(--danger-bg);color:var(--danger)}
+.modal-body{
+  flex:1;overflow-y:auto;
+  padding:22px 24px;
+  font-size:13.5px;
+  line-height:1.85;
+  white-space:pre-wrap;
+  color:var(--text-secondary);
+}
+
+/* ══════════════════════════════ Type Badge ══════════════════════════════ */
+.type-tag{
+  background:var(--accent-bg);
+  color:var(--accent);
+  padding:2px 9px;
+  border-radius:4px;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.03em;
+}
+
+/* ══════════════════════════════ Upload Progress ══════════════════════════════ */
+.upload-progress{padding:10px 18px;font-size:12px}
+.upload-progress .file-name{color:var(--text);font-weight:600;margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.upload-progress .progress-bar{height:7px;background:var(--bg-warm);border-radius:4px;overflow:hidden}
+.upload-progress .progress-bar .fill{
+  height:100%;
+  background:linear-gradient(90deg,var(--primary),var(--accent));
+  border-radius:4px;
+  transition:width .25s ease;
+}
+.upload-progress .progress-text{font-size:11px;color:var(--text-muted);margin-top:4px;display:flex;justify-content:space-between}
+
+/* ══════════════════════════════ Folder Tree ══════════════════════════════ */
+.folder-tree{list-style:none;overflow-y:auto;flex:1;padding:0}
+.folder-tree .tree-node{
+  cursor:pointer;
+  font-size:13px;
+  border-bottom:1px solid var(--border-light);
+  transition:all .2s ease;
+}
+.folder-tree .tree-node:hover{background:var(--bg-warm)}
+.folder-tree .tree-node.active{
+  background:var(--primary-bg);
+  color:var(--primary);
+  font-weight:600;
+  border-left:3px solid var(--primary);
+}
+.folder-tree .tree-label{padding:10px 18px;display:flex;align-items:center;gap:8px}
+.folder-tree .tree-children{padding-left:0}
+.folder-tree .tree-toggle{
+  width:18px;
+  text-align:center;
+  font-size:10px;
+  color:var(--text-muted);
+  flex-shrink:0;
+  cursor:pointer;
+  user-select:none;
+  transition:color .2s;
+}
+.folder-tree .tree-toggle:hover{color:var(--primary)}
+.count{
+  font-size:11px;
+  color:var(--text-muted);
+  margin-left:auto;
+  background:var(--bg);
+  padding:1px 8px;
+  border-radius:10px;
+  font-weight:600;
+}
+
+/* ══════════════════════════════ COT Panel ══════════════════════════════ */
+.cot-panel{
+  margin-bottom:8px;
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  overflow:hidden;
+  font-size:12px;
+  max-width:72%;
+  align-self:flex-start;
+  animation:fadeInUp .3s ease;
+}
+.cot-header{
+  padding:8px 14px;
+  background:var(--bg-warm);
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  color:var(--text-secondary);
+  font-weight:600;
+  user-select:none;
+  transition:background .2s;
+}
+.cot-header:hover{background:var(--border)}
+.cot-body{max-height:0;overflow:hidden;transition:max-height .35s ease}
+.cot-body.open{max-height:400px;overflow-y:auto}
+.cot-steps-list{padding:8px 14px}
+.cot-step{padding:4px 0;display:flex;align-items:center;gap:7px}
+.cot-step .cot-icon{
+  flex-shrink:0;
+  width:18px;height:18px;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;
+}
+.cot-step .cot-icon.done{background:var(--success-bg);color:var(--success)}
+.cot-step .cot-icon.running{background:var(--primary-bg);color:var(--primary);animation:spin .8s linear infinite}
+.cot-step .cot-text{
+  flex:1;min-width:0;
+  color:var(--text-secondary);
+  line-height:1.65;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.cot-step .cot-text b{font-weight:600;color:var(--text);margin-right:5px}
+
+/* ══════════════════════════════ Audit Tree ══════════════════════════════ */
+.audit-tree{list-style:none;overflow-y:auto;flex:1;padding:0}
+.audit-tree .tree-folder{
+  padding:10px 18px;
+  font-size:13px;
+  font-weight:600;
+  color:var(--text-secondary);
+  border-bottom:1px solid var(--border-light);
+  display:flex;align-items:center;gap:8px;
+  cursor:pointer;
+  transition:all .2s ease;
+}
+.audit-tree .tree-folder:hover{background:var(--bg-warm)}
+.audit-tree .tree-doc{
+  padding:8px 18px 8px 42px;
+  cursor:pointer;
+  font-size:13px;
+  border-bottom:1px solid var(--border-light);
+  display:flex;align-items:center;gap:8px;
+  transition:all .2s ease;
+}
+.audit-tree .tree-doc:hover{background:var(--bg-warm)}
+.audit-tree .tree-doc.selected{background:var(--primary-bg);border-left:3px solid var(--primary)}
+
+/* ══════════════════════════════ Checkbox ══════════════════════════════ */
+input[type="checkbox"]{
+  accent-color:var(--primary);
+  width:15px;height:15px;
+  cursor:pointer;
+}
+
+/* ══════════════════════════════ Selection ══════════════════════════════ */
+::selection{background:var(--primary-bg);color:var(--primary)}
+
+/* ══════════════════════════════ Animations ══════════════════════════════ */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* ══════════════════════════════ Performance ══════════════════════════════ */
+.tab-content{contain:layout style}
+.side-panel,.main-area{contain:layout}
+.data-table tbody{contain:layout}
+</style>
 </head>
 <body>
-<div id="app">
-    <!-- Toast notifications -->
-    <div v-if="toast.show" :class="['toast', toast.type]">{{ toast.message }}</div>
+<div id="app" v-cloak>
+<!-- Toast -->
+<div v-if="toast.show" :class="['toast',toast.type]">{{toast.message}}</div>
 
-    <div class="app">
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <div class="sidebar-header">
-                <h2>RAG 智能问答系统</h2>
-                <p>基于本地知识库的智能问答</p>
-            </div>
-
-            <!-- Knowledge Base Management -->
-            <div class="sidebar-section">
-                <h3>
-                    知识库
-                    <button class="btn btn-sm btn-primary" @click="showCreateKB = !showCreateKB">
-                        {{ showCreateKB ? '取消' : '+ 新建' }}
-                    </button>
-                </h3>
-
-                <div v-if="showCreateKB" class="create-form" style="margin-bottom: 12px;">
-                    <input v-model="newKB.name" placeholder="知识库名称" @keyup.enter="createKB">
-                    <textarea v-model="newKB.description" placeholder="描述（可选）" rows="2"></textarea>
-                    <button class="btn btn-primary btn-sm" @click="createKB" :disabled="!newKB.name.trim()">创建</button>
-                </div>
-
-                <ul class="kb-list">
-                    <li v-for="kb in knowledgeBases" :key="kb.id"
-                        :class="['kb-item', { active: selectedKB?.id === kb.id }]"
-                        @click="selectKB(kb)">
-                        <span class="kb-name">{{ kb.name }}</span>
-                        <span class="kb-meta">{{ kb.doc_count }} 文档</span>
-                        <span class="delete-btn" @click.stop="deleteKB(kb.id)" title="删除">&times;</span>
-                    </li>
-                </ul>
-                <p v-if="!knowledgeBases.length" style="font-size: 13px; color: #909399; text-align: center; padding: 16px 0;">
-                    暂无知识库，请先创建
-                </p>
-            </div>
-
-            <!-- Document Management (shown when KB selected) -->
-            <div v-if="selectedKB" class="sidebar-section" style="flex: 1; overflow-y: auto;">
-                <h3>{{ selectedKB.name }} - 文档</h3>
-
-                <div :class="['upload-area', { dragover: isDragover }]"
-                     @dragover.prevent="isDragover = true"
-                     @dragleave="isDragover = false"
-                     @drop.prevent="handleDrop">
-                    <input type="file" multiple
-                           accept=".pdf,.docx,.xlsx,.pptx,.txt,.md"
-                           @change="handleFileSelect"
-                           ref="fileInput">
-                    <div class="upload-icon">+</div>
-                    <p v-if="!uploading">点击或拖拽上传文档</p>
-                    <p v-else><span class="loading">正在处理</span></p>
-                    <p class="hint">支持 PDF、Word、Excel、PPT、TXT、Markdown</p>
-                </div>
-
-                <ul class="doc-list" style="margin-top: 12px;">
-                    <li v-for="doc in documents" :key="doc.id" class="doc-item">
-                        <span class="doc-name" :title="doc.name">{{ doc.name }}</span>
-                        <span class="doc-chunks">{{ doc.chunk_count }} 分块</span>
-                        <button class="btn btn-text" style="color: #f56c6c; font-size: 12px;" @click="deleteDoc(doc.id)">&times;</button>
-                    </li>
-                </ul>
-                <p v-if="selectedKB && !documents.length" style="font-size: 12px; color: #909399; text-align: center; padding: 12px 0;">
-                    尚未上传文档
-                </p>
-            </div>
-        </div>
-
-        <!-- Chat Area -->
-        <div class="chat-area">
-            <div class="chat-header">
-                <h3 v-if="selectedKB">与「{{ selectedKB.name }}」对话</h3>
-                <h3 v-else>请先选择一个知识库</h3>
-            </div>
-
-            <div v-if="!selectedKB" class="chat-empty">
-                请在左侧选择或创建一个知识库开始对话
-            </div>
-
-            <div v-else class="chat-messages" ref="chatMessages">
-                <div v-if="!messages.length" class="chat-empty">
-                    上传文档后，开始提问吧
-                </div>
-                <div v-for="(msg, idx) in messages" :key="idx" :class="['message', 'message-' + msg.role]">
-                    <div v-if="msg.role === 'assistant'" v-html="renderMarkdown(msg.content)"></div>
-                    <template v-else>{{ msg.content }}</template>
-
-                    <!-- Sources -->
-                    <div v-if="msg.sources && msg.sources.length">
-                        <div class="sources-toggle" @click="msg.showSources = !msg.showSources">
-                            {{ msg.showSources ? '收起' : '查看' }}参考来源 ({{ msg.sources.length }})
-                        </div>
-                        <div v-if="msg.showSources" class="sources-list">
-                            <div v-for="(src, si) in msg.sources" :key="si" class="source-item">
-                                <div class="source-name">{{ src.doc_name }}<span v-if="src.page"> - 第{{ src.page }}页</span></div>
-                                <div class="source-text">{{ src.chunk_text }}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div v-if="streaming" class="message message-assistant">
-                    <div v-html="renderMarkdown(streamContent || '思考中...')"></div>
-                </div>
-            </div>
-
-            <div v-if="selectedKB" class="chat-input">
-                <textarea v-model="question"
-                          placeholder="输入你的问题..."
-                          @keydown.enter.exact.prevent="sendQuestion"
-                          rows="1"
-                          ref="questionInput"
-                          @input="autoResize"></textarea>
-                <button class="btn btn-primary" @click="sendQuestion" :disabled="!question.trim() || streaming">
-                    {{ streaming ? '生成中...' : '发送' }}
-                </button>
-            </div>
-        </div>
+<!-- Full-text preview Modal -->
+<div v-if="previewDoc" class="modal-overlay" @click.self="previewDoc=null">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>{{previewDoc.filename}}</h3>
+      <button class="modal-close" @click="previewDoc=null">&times;</button>
     </div>
+    <div class="modal-body">
+      <template v-for="(sec,si) in previewDoc.sections" :key="si">
+        <div v-if="sec.metadata&&sec.metadata.page" style="font-weight:600;color:var(--accent);margin:14px 0 6px;">— 第{{sec.metadata.page}}页 —</div>
+        <div v-else-if="sec.metadata&&sec.metadata.sheet" style="font-weight:600;color:var(--accent);margin:14px 0 6px;">— 工作表: {{sec.metadata.sheet}} —</div>
+        {{sec.text}}
+      </template>
+    </div>
+  </div>
 </div>
 
-<script>
-const { createApp, ref, reactive, onMounted, nextTick, watch } = Vue;
+<!-- Navbar -->
+<nav class="navbar">
+  <div class="logo">智审 <span>Audit</span></div>
+  <div class="nav-tabs">
+    <button :class="['nav-tab',{active:tab==='docs'}]" @click="tab='docs'">&#128194; 文档管理</button>
+    <button :class="['nav-tab',{active:tab==='qa'}]" @click="tab='qa'">&#128172; 知识问答</button>
+    <button :class="['nav-tab',{active:tab==='audit'}]" @click="tab='audit'">&#128270; 文档审核</button>
+  </div>
+</nav>
 
-const API_BASE = window.location.origin;
+<div class="page-body">
+
+<!-- ════════════════ TAB 1: 文档管理 ════════════════ -->
+<div :class="['tab-content',{active:tab==='docs'}]">
+  <!-- Left: folders + upload -->
+  <div class="side-panel">
+    <div class="panel-header">
+      <h3>&#128193; 文件夹</h3>
+      <button class="btn btn-sm btn-primary" @click="showFolderInput=!showFolderInput">+ 新建</button>
+    </div>
+    <div v-if="showFolderInput" style="padding:10px 14px;border-bottom:1px solid var(--border-light);display:flex;gap:6px">
+      <input type="text" v-model="newFolderName" placeholder="文件夹名称" @keydown.enter="createFolder" style="flex:1;padding:7px 10px;font-size:12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);outline:none;font-family:inherit;transition:border-color .2s" onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'">
+      <button class="btn btn-sm btn-primary" @click="createFolder" :disabled="!newFolderName.trim()">创建</button>
+    </div>
+    <ul class="folder-tree">
+      <li class="tree-node" :class="{active:currentFolder==='/'}" @click="currentFolder='/';rootExpanded=true">
+        <div class="tree-label">
+          <span class="tree-toggle" @click.stop="rootExpanded=!rootExpanded">{{rootExpanded?'&#9660;':'&#9654;'}}</span>
+          &#128194; 全部文档 <span class="count">{{allDocs.length}}</span>
+        </div>
+      </li>
+      <div v-show="rootExpanded" class="tree-children">
+        <li v-for="f in folders.filter(x=>x!=='/')" :key="f" class="tree-node" :class="{active:currentFolder===f}" @click="currentFolder=f">
+          <div class="tree-label" style="padding-left:38px">
+            &#128193; {{f.split('/').filter(Boolean).pop()}} <span class="count">{{allDocs.filter(d=>d.folder===f).length}}</span>
+          </div>
+        </li>
+      </div>
+    </ul>
+    <div class="upload-zone" :class="{dragover:isDragover}" @dragover.prevent="isDragover=true" @dragleave="isDragover=false" @drop.prevent="handleDrop">
+      <input type="file" multiple accept=".pdf,.docx,.xlsx,.pptx,.txt,.md" @change="handleFileSelect" ref="fileInput">
+      <p v-if="!uploading">&#128228; 点击或拖拽上传文档</p>
+      <p v-else><span class="spinner" style="border-color:var(--border);border-top-color:var(--primary)"></span> 上传中...</p>
+      <p class="hint">支持 PDF / Word / Excel / PPT / TXT / MD</p>
+    </div>
+    <!-- Upload progress -->
+    <div v-if="uploadProgress.active" class="upload-progress">
+      <div class="file-name">&#128196; {{uploadProgress.fileName}} ({{uploadProgress.current}}/{{uploadProgress.total}})</div>
+      <div class="progress-bar"><div class="fill" :style="{width:uploadProgress.percent+'%'}"></div></div>
+      <div class="progress-text"><span>{{uploadProgress.percent}}%</span><span>{{uploadProgress.current===uploadProgress.total&&uploadProgress.percent===100?'处理中...':'上传中'}}</span></div>
+    </div>
+  </div>
+
+  <!-- Right: document list + preview -->
+  <div class="main-area">
+    <div class="card-header" style="border-radius:0;gap:12px;flex-shrink:0">
+      <h3>{{currentFolder==='/'?'全部文档':currentFolder.split('/').filter(Boolean).pop()}}
+        <span style="font-weight:400;color:var(--text-muted);font-size:12px;margin-left:6px">({{filteredDocs.length}} 个文件)</span>
+      </h3>
+      <input type="search" v-model="searchQuery" placeholder="搜索文件名..." style="width:240px;padding:8px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-family:inherit;outline:none;transition:border-color .25s,box-shadow .25s" onfocus="this.style.borderColor='var(--primary)';this.style.boxShadow='0 0 0 3px var(--primary-glow)'" onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+      <div :style="{flex:selectedDoc?'0 0 45%':'1',overflow:'auto'}">
+        <table class="data-table">
+          <thead><tr>
+            <th style="width:36%">文件名</th><th style="width:10%">类型</th><th style="width:10%">大小</th>
+            <th style="width:8%">分块</th><th style="width:16%">上传时间</th><th style="width:20%">操作</th>
+          </tr></thead>
+          <tbody>
+            <tr v-if="!filteredDocs.length"><td colspan="6" style="text-align:center;padding:48px;color:var(--text-muted)">暂无文档</td></tr>
+            <tr v-for="doc in filteredDocs" :key="doc.id" :style="selectedDoc&&selectedDoc.id===doc.id?{background:'var(--primary-bg)'}:{}" @click="selectDocPreview(doc)">
+              <td style="font-weight:600" :title="doc.name">{{doc.name}}</td>
+              <td><span class="type-tag">{{doc.file_type.toUpperCase()}}</span></td>
+              <td>{{formatSize(doc.size)}}</td>
+              <td>{{doc.chunk_count}}</td>
+              <td style="font-size:12px;color:var(--text-secondary)">{{formatTime(doc.uploaded_at)}}</td>
+              <td>
+                <button class="btn btn-sm btn-ghost" @click.stop="viewDocFull(doc)">&#128065; 全文</button>
+                <button class="btn btn-sm btn-ghost" style="color:var(--danger);border-color:var(--danger-bg)" @click.stop="deleteDoc(doc.id)">&#128465; 删除</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Inline preview -->
+      <div v-if="selectedDoc" class="preview-panel">
+        <div class="preview-header">
+          <h3 style="font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;font-family:'Crimson Pro',Georgia,serif">
+            &#128196; {{selectedDoc.name}} <span style="font-weight:400;color:var(--text-muted);font-size:12px;font-family:'Plus Jakarta Sans',sans-serif">{{formatSize(selectedDoc.size)}}</span>
+          </h3>
+          <button class="btn btn-sm btn-ghost" @click="selectedDoc=null;selectedDocContent=null">&times; 关闭</button>
+        </div>
+        <div class="preview-body">
+          <div v-if="previewLoading" style="text-align:center;padding:24px;color:var(--text-muted)"><span class="spinner" style="border-color:var(--border);border-top-color:var(--primary)"></span> 加载中...</div>
+          <template v-else-if="selectedDocContent">
+            <template v-for="(sec,si) in selectedDocContent.sections" :key="si">
+              <div v-if="sec.metadata&&sec.metadata.page" style="font-weight:600;color:var(--accent);margin:12px 0 6px">— 第{{sec.metadata.page}}页 —</div>
+              {{sec.text}}
+            </template>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════ TAB 2: 知识问答 ════════════════ -->
+<div :class="['tab-content',{active:tab==='qa'}]" style="flex-direction:column">
+  <!-- 聊天消息区：占满剩余高度，独立滚动 -->
+  <div class="chat-messages" ref="chatBox">
+    <div v-if="!messages.length&&!streaming" class="chat-empty">
+      <span style="font-size:44px">&#128172;</span>
+      <span style="font-size:17px;font-weight:700;font-family:'Crimson Pro',Georgia,serif;color:var(--text)">知识库智能问答</span>
+      <span style="color:var(--text-secondary)">输入问题，系统将联网搜索最新信息并结合本地文档库生成回答</span>
+      <span style="font-size:12px;color:var(--text-muted);background:var(--bg-warm);padding:4px 12px;border-radius:12px">已索引 {{allDocs.length}} 个文档</span>
+    </div>
+    <template v-for="(m,mi) in messages" :key="mi">
+      <!-- COT for completed assistant messages (above answer, default collapsed) -->
+      <div v-if="m.role==='assistant'&&m.cot&&m.cot.length" class="cot-panel">
+        <div class="cot-header" @click="toggleCotFlag(mi)">
+          <span>{{cotOpenFlags[mi]?'\u25BC':'\u25B6'}}</span>
+          &#129504; 思维链推理过程 ({{m.cot.length}} 步)
+        </div>
+        <div :class="['cot-body',{open:cotOpenFlags[mi]}]">
+          <div class="cot-steps-list">
+            <div v-for="(step,si) in m.cot" :key="si" class="cot-step">
+              <span class="cot-icon done">&#10003;</span>
+              <span class="cot-text"><b>{{step.step}}</b>{{step.detail}}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div :class="['msg','msg-'+(m.role==='user'?'user':'bot')]">
+        <div v-if="m.role==='assistant'" v-html="renderMd(m.content)"></div>
+        <template v-else>{{m.content}}</template>
+        <div v-if="m.sources&&m.sources.length">
+          <div class="sources-toggle" @click="m.showSrc=!m.showSrc">{{m.showSrc?'收起':'查看'}}来源 ({{m.sources.length}})</div>
+          <div v-if="m.showSrc" class="sources-list">
+            <div v-for="(s,si) in m.sources" :key="si" class="source-item">
+              <div style="font-weight:600;color:var(--accent)">
+                <span v-if="s.source_type==='web'" style="background:#e0f2fe;color:#0369a1;font-size:10px;padding:1px 6px;border-radius:8px;margin-right:4px">网络</span>
+                <span v-else style="background:#f0fdf4;color:#15803d;font-size:10px;padding:1px 6px;border-radius:8px;margin-right:4px">文档</span>
+                <a v-if="s.url" :href="s.url" target="_blank" style="color:var(--accent);text-decoration:underline">{{s.doc_name}}</a>
+                <template v-else>{{s.doc_name}}<span v-if="s.page"> — 第{{s.page}}页</span></template>
+              </div>
+              <div style="margin-top:3px;color:var(--text-muted);font-size:11px">{{s.chunk_text}}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+    <!-- COT thinking chain (during streaming, default expanded) -->
+    <div v-if="streaming&&cotSteps.length" class="cot-panel">
+      <div class="cot-header" @click="cotExpanded=!cotExpanded">
+        <span>{{cotExpanded?'&#9660;':'&#9654;'}}</span>
+        &#129504; 思维链推理过程 ({{cotSteps.length}} 步)
+        <span v-if="!streamContent" class="spinner" style="width:12px;height:12px;border-width:2px;border-color:var(--border);border-top-color:var(--primary);margin-left:auto"></span>
+      </div>
+      <div :class="['cot-body',{open:cotExpanded}]">
+        <div class="cot-steps-list">
+          <div v-for="(step,si) in cotSteps" :key="si" class="cot-step">
+            <span :class="['cot-icon',cotStepDone(si)?'done':'running']">{{cotStepDone(si)?'\u2713':'\u25CF'}}</span>
+            <span class="cot-text"><b>{{step.step}}</b>{{step.detail}}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div v-if="streaming" class="msg msg-bot">
+      <div v-if="streamContent" v-html="renderMd(streamContent)"></div>
+      <div v-else style="color:var(--text-muted)">思考中...</div>
+    </div>
+  </div>
+  <!-- 输入栏：固定在底部不滚动 -->
+  <div class="chat-input-bar">
+    <textarea v-model="question" placeholder="输入你的问题，回车发送..." @keydown.enter.prevent="sendQuestion" rows="1" ref="qaInput" @input="autoResize"></textarea>
+    <button class="btn btn-primary" @click="sendQuestion" :disabled="!question.trim()||streaming||allDocs.length===0">
+      {{streaming?'生成中...':'发送'}}
+    </button>
+  </div>
+</div>
+
+<!-- ════════════════ TAB 3: 文档审核 ════════════════ -->
+<div :class="['tab-content',{active:tab==='audit'}]">
+  <!-- Left: doc selector -->
+  <div class="side-panel">
+    <div class="panel-header">
+      <h3>选择文档</h3>
+      <button class="btn btn-sm btn-ghost" @click="toggleAllAudit">{{auditAllSelected?'取消全选':'全选'}}</button>
+    </div>
+    <div v-if="!allDocs.length" style="padding:24px 18px;text-align:center;color:var(--text-muted);font-size:13px">请先在"文档管理"中上传文档</div>
+    <ul class="audit-tree">
+      <!-- Root: 全部文档 -->
+      <li class="tree-folder" @click="auditRootExpanded=!auditRootExpanded">
+        <span style="font-size:10px">{{auditRootExpanded?'&#9660;':'&#9654;'}}</span>
+        &#128194; 全部文档
+        <span class="count" style="margin-left:auto;font-weight:400">{{allDocs.length}}</span>
+      </li>
+      <template v-if="auditRootExpanded">
+        <!-- Docs in root folder -->
+        <li v-for="doc in allDocs.filter(d=>d.folder==='/'||!d.folder)" :key="doc.id" class="tree-doc" :class="{selected:auditSelected.includes(doc.id)}" @click="toggleAuditDoc(doc.id)">
+          <input type="checkbox" :checked="auditSelected.includes(doc.id)" @click.stop>
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" :title="doc.name">{{doc.name}}</span>
+          <span class="doc-meta">{{doc.file_type.toUpperCase()}}</span>
+        </li>
+        <!-- Sub-folders -->
+        <template v-for="f in folders.filter(x=>x!=='/')" :key="'audit-'+f">
+          <li class="tree-folder" style="padding-left:32px" @click="toggleAuditFolder(f)">
+            <span style="font-size:10px">{{auditFolderExpanded[f]?'&#9660;':'&#9654;'}}</span>
+            &#128193; {{f.split('/').filter(Boolean).pop()}}
+            <span class="count" style="margin-left:auto;font-weight:400">{{allDocs.filter(d=>d.folder===f).length}}</span>
+          </li>
+          <template v-if="auditFolderExpanded[f]">
+            <li v-for="doc in allDocs.filter(d=>d.folder===f)" :key="doc.id" class="tree-doc" style="padding-left:56px" :class="{selected:auditSelected.includes(doc.id)}" @click="toggleAuditDoc(doc.id)">
+              <input type="checkbox" :checked="auditSelected.includes(doc.id)" @click.stop>
+              <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" :title="doc.name">{{doc.name}}</span>
+              <span class="doc-meta">{{doc.file_type.toUpperCase()}}</span>
+            </li>
+          </template>
+        </template>
+      </template>
+    </ul>
+  </div>
+
+  <!-- Right: categories + results -->
+  <div class="main-area" style="overflow:hidden">
+    <div class="audit-category-bar">
+      <span style="font-size:13px;font-weight:700;color:var(--text);margin-right:8px;font-family:'Crimson Pro',Georgia,serif">&#128203; 审查类别:</span>
+      <label v-for="cat in categories" :key="cat.key" :class="{active:selectedCats.includes(cat.key)}" @click.prevent="toggleCat(cat.key)">{{cat.label}}</label>
+      <span style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <button class="btn btn-sm btn-ghost" @click="toggleAllCats">{{allCatsOn?'取消全选':'全选'}}</button>
+        <button class="btn btn-sm btn-primary" :disabled="!auditSelected.length||auditing" @click="startAudit">
+          <template v-if="auditing"><span class="spinner" style="width:14px;height:14px;border-width:2px"></span> 审查中...</template>
+          <template v-else>&#128270; 开始审查</template>
+        </button>
+      </span>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:22px">
+      <!-- Empty state -->
+      <div v-if="!auditResult&&!auditing" class="chat-empty" style="height:100%">
+        <span style="font-size:44px">&#128203;</span>
+        <span style="font-family:'Crimson Pro',Georgia,serif;font-size:16px;font-weight:600;color:var(--text)">选择文档并点击"开始审查"</span>
+        <span style="font-size:13px;color:var(--text-muted)">系统将自动检测敏感词汇、违规内容和合规性问题</span>
+      </div>
+      <!-- Loading -->
+      <div v-if="auditing&&!auditResult" class="chat-empty" style="height:100%">
+        <span class="spinner" style="width:36px;height:36px;border-color:var(--border);border-top-color:var(--primary);border-width:3px"></span>
+        <span style="font-weight:600;color:var(--text-secondary)">正在审查文档，请稍候...</span>
+      </div>
+      <!-- Results -->
+      <div v-if="auditResult">
+        <!-- Summary bar -->
+        <div style="display:flex;gap:14px;margin-bottom:22px;flex-wrap:wrap">
+          <div class="card" style="flex:1;min-width:160px;padding:18px 22px">
+            <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600">审查文档 / 问题文件</div>
+            <div style="font-size:28px;font-weight:700;margin-top:6px;font-family:'Crimson Pro',Georgia,serif">{{auditResult.results.length}} / <span style="color:var(--danger)">{{problemDocs.length}}</span></div>
+          </div>
+          <div class="card" style="flex:1;min-width:160px;padding:18px 22px">
+            <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600">总命中数</div>
+            <div style="font-size:28px;font-weight:700;color:var(--danger);margin-top:6px;font-family:'Crimson Pro',Georgia,serif">{{auditResult.overall_total_hits}}</div>
+          </div>
+          <div class="card" style="flex:1;min-width:160px;padding:18px 22px">
+            <div style="font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600">整体风险</div>
+            <div style="margin-top:8px">
+              <span :class="'badge badge-'+auditResult.overall_risk_level">{{riskLabel(auditResult.overall_risk_level)}}</span>
+            </div>
+          </div>
+        </div>
+        <!-- Per-document results (only show files with issues) -->
+        <div v-if="problemDocs.length===0" style="text-align:center;padding:48px;color:var(--success);font-size:16px;font-weight:600;font-family:'Crimson Pro',Georgia,serif">&#9989; 所有文档均未发现问题</div>
+        <div v-for="res in problemDocs" :key="res.doc_id" class="card" style="margin-bottom:18px">
+          <div class="card-header">
+            <h3>&#128196; {{res.doc_name||res.filename}}</h3>
+            <span :class="'badge badge-'+res.risk_level">{{riskLabel(res.risk_level)}} ({{res.hits.length}} 项问题)</span>
+          </div>
+          <div style="padding:18px 22px">
+            <div v-for="(h,hi) in res.hits" :key="hi" style="padding:12px 0;border-bottom:1px solid var(--border-light);font-size:13px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <span class="type-tag">{{h.category_label||h.category}}</span>
+                <span style="font-weight:700">{{h.keyword}}</span>
+                <span :class="'badge badge-'+h.severity" style="margin-left:auto">{{h.severity}}</span>
+              </div>
+              <div style="color:var(--text-secondary);font-size:12px;margin-top:6px;background:var(--bg);padding:8px 12px;border-radius:var(--radius-sm);border-left:3px solid var(--warning)">...{{h.context}}...</div>
+            </div>
+          </div>
+        </div>
+        <!-- Export -->
+        <div style="text-align:center;padding:14px">
+          <button class="btn btn-primary" @click="exportAudit" style="padding:10px 28px;font-size:14px">&#128190; 导出审查报告</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- page-body -->
+</div><!-- #app -->
+
+<script>
+const{createApp,ref,reactive,computed,onMounted,nextTick,watch}=Vue;
+const API=window.location.origin;
 
 createApp({
-    setup() {
-        // State
-        const knowledgeBases = ref([]);
-        const selectedKB = ref(null);
-        const documents = ref([]);
-        const messages = ref([]);
-        const question = ref('');
-        const streaming = ref(false);
-        const streamContent = ref('');
-        const uploading = ref(false);
-        const showCreateKB = ref(false);
-        const isDragover = ref(false);
-        const newKB = reactive({ name: '', description: '' });
-        const toast = reactive({ show: false, message: '', type: 'success' });
+setup(){
+  const tab=ref('docs');
+  const allDocs=ref([]);
+  const toast=reactive({show:false,message:'',type:'success'});
+  const searchQuery=ref('');
+  const uploading=ref(false);
+  const isDragover=ref(false);
+  const fileInput=ref(null);
+  const previewDoc=ref(null);
 
-        // Refs
-        const chatMessages = ref(null);
-        const questionInput = ref(null);
-        const fileInput = ref(null);
+  // Folder
+  const folders=ref(['/']);
+  const currentFolder=ref('/');
+  const showFolderInput=ref(false);
+  const newFolderName=ref('');
+  const rootExpanded=ref(true);
 
-        // Toast
-        function showToast(message, type = 'success') {
-            toast.show = true;
-            toast.message = message;
-            toast.type = type;
-            setTimeout(() => { toast.show = false; }, 3000);
+  // Upload progress
+  const uploadProgress=reactive({active:false,fileName:'',percent:0,current:0,total:0});
+
+  // Doc preview (tab 1)
+  const selectedDoc=ref(null);
+  const selectedDocContent=ref(null);
+  const previewLoading=ref(false);
+
+  // Q&A
+  const messages=ref([]);
+  const question=ref('');
+  const streaming=ref(false);
+  const streamContent=ref('');
+  const chatBox=ref(null);
+  const qaInput=ref(null);
+  const cotSteps=ref([]);
+  const cotExpanded=ref(true);
+  const cotOpenFlags=ref([]);
+
+  // Audit
+  const auditSelected=ref([]);
+  const categories=ref([]);
+  const selectedCats=ref([]);
+  const auditing=ref(false);
+  const auditResult=ref(null);
+  const auditRootExpanded=ref(true);
+  const auditFolderExpanded=reactive({});
+
+  // ── Helpers ──
+  function showToast(msg,type='success'){toast.show=true;toast.message=msg;toast.type=type;setTimeout(()=>{toast.show=false},3000)}
+  function formatSize(b){if(!b)return'-';if(b<1024)return b+'B';if(b<1048576)return(b/1024).toFixed(1)+'KB';return(b/1048576).toFixed(1)+'MB'}
+  function formatTime(t){if(!t)return'-';const d=new Date(t);return d.toLocaleDateString('zh-CN')+' '+d.toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'})}
+  function renderMd(text){if(!text)return'';try{return marked.parse(text)}catch{return text}}
+  function autoResize(e){const el=e.target;el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px'}
+  function scrollChat(){nextTick(()=>{if(chatBox.value)chatBox.value.scrollTop=chatBox.value.scrollHeight})}
+  function cotStepDone(si){return si<cotSteps.value.length-1||!!streamContent.value}
+  function toggleCotFlag(mi){cotOpenFlags.value=cotOpenFlags.value.map((v,i)=>i===mi?!v:v)}
+
+  // ── Computed ──
+  const filteredDocs=computed(()=>{
+    let docs=allDocs.value;
+    if(currentFolder.value!=='/') docs=docs.filter(d=>d.folder===currentFolder.value);
+    if(searchQuery.value) docs=docs.filter(d=>d.name.toLowerCase().includes(searchQuery.value.toLowerCase()));
+    return docs;
+  });
+  const auditAllSelected=computed(()=>allDocs.value.length>0&&auditSelected.value.length===allDocs.value.length);
+  const allCatsOn=computed(()=>categories.value.length>0&&selectedCats.value.length===categories.value.length);
+  const problemDocs=computed(()=>{
+    if(!auditResult.value||!auditResult.value.results)return[];
+    return auditResult.value.results.filter(r=>r.hits&&r.hits.length>0);
+  });
+
+  // ── Documents ──
+  async function loadDocs(){
+    try{const r=await fetch(`${API}/api/documents`);if(!r.ok)throw new Error();allDocs.value=await r.json()}
+    catch{showToast('加载文档列表失败','error')}
+  }
+  async function loadFolders(){
+    try{const r=await fetch(`${API}/api/documents/folders`);if(!r.ok)throw new Error();const data=await r.json();folders.value=data.length?data:['/'];if(!data.includes(currentFolder.value))currentFolder.value='/'}
+    catch{}
+  }
+  async function createFolder(){
+    if(!newFolderName.value.trim())return;
+    const path=currentFolder.value==='/'?'/'+newFolderName.value.trim():currentFolder.value+'/'+newFolderName.value.trim();
+    const fd=new FormData();fd.append('path',path);
+    try{const r=await fetch(`${API}/api/documents/folders`,{method:'POST',body:fd});if(!r.ok)throw new Error();await loadFolders();newFolderName.value='';showFolderInput.value=false;showToast('文件夹创建成功')}
+    catch{showToast('创建失败','error')}
+  }
+  function uploadFile(file){
+    return new Promise((resolve)=>{
+      const formData=new FormData();formData.append('file',file);
+      if(currentFolder.value!=='/') formData.append('folder',currentFolder.value);
+      uploadProgress.fileName=file.name;uploadProgress.percent=0;
+      const xhr=new XMLHttpRequest();
+      xhr.upload.onprogress=(e)=>{if(e.lengthComputable)uploadProgress.percent=Math.round(e.loaded/e.total*100)};
+      xhr.onload=()=>{
+        if(xhr.status>=200&&xhr.status<300){showToast(`${file.name} 上传成功`)}
+        else{try{const e=JSON.parse(xhr.responseText);showToast(`${file.name}: ${e.detail||'上传失败'}`,'error')}catch{showToast(`${file.name}: 上传失败`,'error')}}
+        resolve()
+      };
+      xhr.onerror=()=>{showToast(`${file.name}: 上传失败`,'error');resolve()};
+      xhr.open('POST',`${API}/api/documents`);xhr.send(formData);
+    })
+  }
+  async function handleFiles(files){
+    if(!files.length)return;
+    uploading.value=true;uploadProgress.active=true;uploadProgress.total=files.length;
+    for(let i=0;i<files.length;i++){uploadProgress.current=i+1;await uploadFile(files[i])}
+    uploading.value=false;uploadProgress.active=false;
+    if(fileInput.value)fileInput.value.value='';await loadDocs();await loadFolders()
+  }
+  async function handleFileSelect(e){await handleFiles(e.target.files)}
+  async function handleDrop(e){isDragover.value=false;await handleFiles(e.dataTransfer.files)}
+  async function deleteDoc(id){
+    if(!confirm('确定删除此文档？'))return;
+    try{await fetch(`${API}/api/documents/${id}`,{method:'DELETE'});await loadDocs();await loadFolders();if(selectedDoc.value&&selectedDoc.value.id===id){selectedDoc.value=null;selectedDocContent.value=null}showToast('文档已删除')}
+    catch{showToast('删除失败','error')}
+  }
+  async function viewDocFull(doc){
+    try{const r=await fetch(`${API}/api/documents/${doc.id}/content`);if(!r.ok)throw new Error();previewDoc.value=await r.json()}
+    catch{showToast('加载内容失败','error')}
+  }
+  async function selectDocPreview(doc){
+    if(selectedDoc.value&&selectedDoc.value.id===doc.id){selectedDoc.value=null;selectedDocContent.value=null;return}
+    selectedDoc.value=doc;selectedDocContent.value=null;previewLoading.value=true;
+    try{const r=await fetch(`${API}/api/documents/${doc.id}/content`);if(!r.ok)throw new Error();selectedDocContent.value=await r.json()}
+    catch{showToast('加载预览失败','error')}
+    finally{previewLoading.value=false}
+  }
+
+  // ── Q&A ──
+  async function sendQuestion(){
+    if(!question.value.trim()||streaming.value)return;
+    if(allDocs.value.length===0){showToast('请先上传文档','error');return}
+    const q=question.value.trim();question.value='';
+    if(qaInput.value)qaInput.value.style.height='auto';
+    messages.value.push({role:'user',content:q});cotOpenFlags.value.push(false);scrollChat();
+    streaming.value=true;streamContent.value='';cotSteps.value=[];cotExpanded.value=true;
+    const sources=[];const cot=[];
+    try{
+      const r=await fetch(`${API}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,top_k:4})});
+      if(!r.ok)throw new Error('请求失败');
+      const reader=r.body.getReader();const dec=new TextDecoder();let buf='';
+      while(true){
+        const{done,value}=await reader.read();if(done)break;
+        buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop()||'';
+        let ev='';
+        for(const ln of lines){
+          if(ln.startsWith('event: ')){ev=ln.slice(7).trim()}
+          else if(ln.startsWith('data: ')){
+            try{const p=JSON.parse(ln.slice(6));
+              if(ev==='cot'){cot.push({step:p.step||'处理中',detail:p.detail||''});cotSteps.value=[...cot];scrollChat()}
+              else if(ev==='source')sources.push(p);
+              else if(ev==='token'){streamContent.value+=p.content;scrollChat()}
+              else if(ev==='error')showToast(p.message,'error');
+            }catch{}
+            ev='';
+          }
         }
+      }
+      if(streamContent.value){messages.value.push({role:'assistant',content:streamContent.value,sources,showSrc:false,cot:[...cot]});cotOpenFlags.value.push(false)}
+    }catch(e){showToast('请求失败: '+e.message,'error')}
+    finally{streaming.value=false;streamContent.value='';cotSteps.value=[];scrollChat()}
+  }
 
-        // Scroll to bottom
-        function scrollToBottom() {
-            nextTick(() => {
-                if (chatMessages.value) {
-                    chatMessages.value.scrollTop = chatMessages.value.scrollHeight;
-                }
-            });
-        }
+  // ── Audit ──
+  async function loadCats(){
+    try{const r=await fetch(`${API}/api/audit/categories`);if(!r.ok)throw new Error();categories.value=await r.json();selectedCats.value=categories.value.map(c=>c.key)}catch{}
+  }
+  function toggleAuditDoc(id){const i=auditSelected.value.indexOf(id);i>=0?auditSelected.value.splice(i,1):auditSelected.value.push(id)}
+  function toggleAllAudit(){auditSelected.value=auditAllSelected.value?[]:allDocs.value.map(d=>d.id)}
+  function toggleAuditFolder(f){auditFolderExpanded[f]=!auditFolderExpanded[f]}
+  function toggleCat(key){const i=selectedCats.value.indexOf(key);i>=0?selectedCats.value.splice(i,1):selectedCats.value.push(key)}
+  function toggleAllCats(){selectedCats.value=allCatsOn.value?[]:categories.value.map(c=>c.key)}
+  function riskLabel(l){return{safe:'安全',low:'低风险',medium:'中风险',high:'高风险'}[l]||l}
 
-        // Auto resize textarea
-        function autoResize(e) {
-            const el = e.target;
-            el.style.height = 'auto';
-            el.style.height = Math.min(el.scrollHeight, 120) + 'px';
-        }
+  async function startAudit(){
+    if(!auditSelected.value.length)return;
+    auditing.value=true;auditResult.value=null;
+    try{
+      const r=await fetch(`${API}/api/audit/scan`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({doc_ids:auditSelected.value,categories:selectedCats.value})});
+      if(!r.ok)throw new Error();auditResult.value=await r.json();showToast('审查完成')
+    }catch{showToast('审查失败','error')}
+    finally{auditing.value=false}
+  }
 
-        // Render markdown
-        function renderMarkdown(text) {
-            if (!text) return '';
-            try {
-                return marked.parse(text);
-            } catch {
-                return text;
-            }
-        }
+  async function exportAudit(){
+    try{
+      const r=await fetch(`${API}/api/audit/export-by-ids`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({doc_ids:auditSelected.value,categories:selectedCats.value})});
+      if(!r.ok)throw new Error();const blob=await r.blob();const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');a.href=url;a.download='audit_report.csv';a.click();URL.revokeObjectURL(url);showToast('报告导出成功')
+    }catch{showToast('导出失败','error')}
+  }
 
-        // --- Knowledge Base ---
-        async function loadKBs() {
-            try {
-                const res = await fetch(`${API_BASE}/api/knowledge-bases`);
-                knowledgeBases.value = await res.json();
-            } catch (e) {
-                showToast('加载知识库失败', 'error');
-            }
-        }
-
-        async function createKB() {
-            if (!newKB.name.trim()) return;
-            try {
-                const res = await fetch(`${API_BASE}/api/knowledge-bases`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: newKB.name, description: newKB.description }),
-                });
-                const kb = await res.json();
-                knowledgeBases.value.push(kb);
-                selectKB(kb);
-                newKB.name = '';
-                newKB.description = '';
-                showCreateKB.value = false;
-                showToast('知识库创建成功');
-            } catch (e) {
-                showToast('创建失败', 'error');
-            }
-        }
-
-        async function deleteKB(id) {
-            if (!confirm('确定删除该知识库？所有文档将被清除。')) return;
-            try {
-                await fetch(`${API_BASE}/api/knowledge-bases/${id}`, { method: 'DELETE' });
-                knowledgeBases.value = knowledgeBases.value.filter(kb => kb.id !== id);
-                if (selectedKB.value?.id === id) {
-                    selectedKB.value = null;
-                    documents.value = [];
-                    messages.value = [];
-                }
-                showToast('知识库已删除');
-            } catch (e) {
-                showToast('删除失败', 'error');
-            }
-        }
-
-        function selectKB(kb) {
-            selectedKB.value = kb;
-            messages.value = [];
-            loadDocuments();
-        }
-
-        // --- Documents ---
-        async function loadDocuments() {
-            if (!selectedKB.value) return;
-            try {
-                const res = await fetch(`${API_BASE}/api/knowledge-bases/${selectedKB.value.id}/documents`);
-                documents.value = await res.json();
-            } catch (e) {
-                showToast('加载文档列表失败', 'error');
-            }
-        }
-
-        async function uploadFile(file) {
-            if (!selectedKB.value) return;
-            const formData = new FormData();
-            formData.append('file', file);
-
-            try {
-                const res = await fetch(
-                    `${API_BASE}/api/knowledge-bases/${selectedKB.value.id}/documents`,
-                    { method: 'POST', body: formData }
-                );
-                if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.detail || '上传失败');
-                }
-                const doc = await res.json();
-                documents.value.push(doc);
-                // Update KB doc count
-                selectedKB.value.doc_count = documents.value.length;
-                showToast(`${file.name} 上传成功`);
-            } catch (e) {
-                showToast(`${file.name}: ${e.message}`, 'error');
-            }
-        }
-
-        async function handleFileSelect(e) {
-            const files = e.target.files;
-            if (!files.length) return;
-            uploading.value = true;
-            for (const file of files) {
-                await uploadFile(file);
-            }
-            uploading.value = false;
-            if (fileInput.value) fileInput.value.value = '';
-        }
-
-        async function handleDrop(e) {
-            isDragover.value = false;
-            const files = e.dataTransfer.files;
-            if (!files.length) return;
-            uploading.value = true;
-            for (const file of files) {
-                await uploadFile(file);
-            }
-            uploading.value = false;
-        }
-
-        async function deleteDoc(docId) {
-            if (!selectedKB.value) return;
-            try {
-                await fetch(
-                    `${API_BASE}/api/knowledge-bases/${selectedKB.value.id}/documents/${docId}`,
-                    { method: 'DELETE' }
-                );
-                documents.value = documents.value.filter(d => d.id !== docId);
-                selectedKB.value.doc_count = documents.value.length;
-                showToast('文档已删除');
-            } catch (e) {
-                showToast('删除失败', 'error');
-            }
-        }
-
-        // --- Chat ---
-        async function sendQuestion() {
-            if (!question.value.trim() || streaming.value || !selectedKB.value) return;
-
-            const q = question.value.trim();
-            question.value = '';
-
-            // Reset textarea height
-            if (questionInput.value) questionInput.value.style.height = 'auto';
-
-            messages.value.push({ role: 'user', content: q });
-            scrollToBottom();
-
-            streaming.value = true;
-            streamContent.value = '';
-            const sources = [];
-
-            try {
-                const res = await fetch(`${API_BASE}/api/chat`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        question: q,
-                        kb_id: selectedKB.value.id,
-                        top_k: 4,
-                    }),
-                });
-
-                if (!res.ok) {
-                    throw new Error('请求失败');
-                }
-
-                const reader = res.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop() || '';
-
-                    let currentEvent = '';
-                    for (const line of lines) {
-                        if (line.startsWith('event: ')) {
-                            currentEvent = line.slice(7).trim();
-                        } else if (line.startsWith('data: ')) {
-                            const data = line.slice(6);
-                            try {
-                                const parsed = JSON.parse(data);
-                                if (currentEvent === 'source') {
-                                    sources.push(parsed);
-                                } else if (currentEvent === 'token') {
-                                    streamContent.value += parsed.content;
-                                    scrollToBottom();
-                                } else if (currentEvent === 'error') {
-                                    showToast(parsed.message, 'error');
-                                } else if (currentEvent === 'done') {
-                                    // complete
-                                }
-                            } catch {}
-                            currentEvent = '';
-                        }
-                    }
-                }
-
-                // Finalize assistant message
-                if (streamContent.value) {
-                    messages.value.push({
-                        role: 'assistant',
-                        content: streamContent.value,
-                        sources: sources,
-                        showSources: false,
-                    });
-                }
-            } catch (e) {
-                showToast('请求失败: ' + e.message, 'error');
-            } finally {
-                streaming.value = false;
-                streamContent.value = '';
-                scrollToBottom();
-            }
-        }
-
-        // Init
-        onMounted(() => {
-            loadKBs();
-        });
-
-        return {
-            knowledgeBases, selectedKB, documents, messages, question,
-            streaming, streamContent, uploading, showCreateKB, isDragover,
-            newKB, toast, chatMessages, questionInput, fileInput,
-            showToast, scrollToBottom, autoResize, renderMarkdown,
-            loadKBs, createKB, deleteKB, selectKB,
-            loadDocuments, handleFileSelect, handleDrop, deleteDoc,
-            sendQuestion,
-        };
+  // ── Init ──
+  async function ensureDefaultFolders(){
+    const defaults=['/测试','/测试2'];
+    let changed=false;
+    for(const p of defaults){
+      if(!folders.value.includes(p)){
+        const fd=new FormData();fd.append('path',p);
+        try{const r=await fetch(`${API}/api/documents/folders`,{method:'POST',body:fd});if(r.ok)changed=true}catch{}
+      }
     }
+    if(changed)await loadFolders();
+  }
+  onMounted(async()=>{await loadDocs();await loadFolders();await ensureDefaultFolders();await loadCats()});
+  watch(tab,v=>{if(v==='docs'){loadDocs();loadFolders()}else if(v==='audit'){loadCats()}});
+
+  return{
+    tab,allDocs,toast,searchQuery,uploading,isDragover,fileInput,previewDoc,filteredDocs,
+    folders,currentFolder,showFolderInput,newFolderName,rootExpanded,uploadProgress,
+    selectedDoc,selectedDocContent,previewLoading,
+    messages,question,streaming,streamContent,chatBox,qaInput,cotSteps,cotExpanded,cotOpenFlags,
+    auditSelected,categories,selectedCats,auditing,auditResult,auditAllSelected,allCatsOn,
+    auditRootExpanded,auditFolderExpanded,problemDocs,
+    showToast,formatSize,formatTime,renderMd,autoResize,cotStepDone,toggleCotFlag,
+    loadDocs,loadFolders,loadCats,createFolder,
+    handleFileSelect,handleDrop,deleteDoc,viewDocFull,selectDocPreview,
+    sendQuestion,
+    toggleAuditDoc,toggleAllAudit,toggleAuditFolder,toggleCat,toggleAllCats,startAudit,riskLabel,exportAudit,
+  };
+}
 }).mount('#app');
 </script>
 </body>
