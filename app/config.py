@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     chunk_overlap: int = 50
     retrieval_top_k: int = 4
 
+    # Web Search
+    web_search_enabled: bool = True
+    web_search_top_k: int = 3
+
     # Server
     host: str = "0.0.0.0"
     port: int = 8000

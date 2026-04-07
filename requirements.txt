@@ -27,6 +27,9 @@ markdown>=3.5.0
 pydantic-settings>=2.1.0
 python-dotenv>=1.0.0
 
+# Web search
+ddgs>=5.0.0
+
 # Utilities
 aiofiles>=23.0.0
 
